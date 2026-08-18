@@ -33,7 +33,7 @@ function ChipIcon({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="chunk grid size-10 place-items-center rounded-2xl border-[#d7b56a] bg-surface text-fg shadow-[0_1px_0_rgba(255,255,255,0.7)]"
+      className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-surface hover:text-fg"
     >
       {children}
     </button>
@@ -46,7 +46,7 @@ function LangSwitch() {
     <div
       role="tablist"
       aria-label={t("lang.label")}
-      className="chunk grid h-10 w-[7.75rem] shrink-0 grid-cols-2 rounded-2xl border-[#d7b56a] bg-surface p-0.5 shadow-[0_1px_0_rgba(255,255,255,0.7)]"
+      className="grid h-7 w-[5.75rem] shrink-0 grid-cols-2 rounded-full bg-inset p-0.5"
     >
       {([
         { id: "zh" as const, label: "中文" },
@@ -61,8 +61,8 @@ function LangSwitch() {
             aria-selected={on}
             onClick={() => setLocale(opt.id)}
             className={cn(
-              "h-9 w-full rounded-xl px-1 text-sm font-extrabold",
-              on ? "bg-sun text-fg" : "text-muted",
+              "h-6 w-full rounded-full px-1 text-[11px] font-extrabold",
+              on ? "bg-surface text-fg shadow-[0_1px_0_rgba(59,42,20,0.08)]" : "text-subtle",
             )}
           >
             {opt.label}
@@ -126,16 +126,17 @@ export function StudioShell({ children }: { children: ReactNode }) {
   return (
     <HudContext.Provider value={hud}>
       <div className="relative flex h-dvh flex-col overflow-hidden overscroll-none bg-bg text-fg">
-        <div className={cn("relative mx-auto flex min-h-0 w-full flex-1 flex-col", !splash && "max-w-[760px]")}>
+        <div className="tex-ground" aria-hidden />
+        <div className={cn("relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col", !splash && "max-w-[760px]")}>
           <header
             className={cn(
               "z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 sm:px-3",
               splash
-                ? "pointer-events-none relative shrink-0 bg-bg pt-[max(0.85rem,env(safe-area-inset-top))] pb-4 max-lg:border-b max-lg:border-[#ead9a8] [&>*]:pointer-events-auto lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:border-0 lg:pb-4 lg:pt-[max(0.55rem,env(safe-area-inset-top))]"
-                : "relative shrink-0 bg-bg pt-[max(0.3rem,env(safe-area-inset-top))]",
+                ? "splash-chrome pointer-events-none absolute inset-x-0 top-0 z-20 pt-[max(0.85rem,env(safe-area-inset-top))] pb-12 [&>*]:pointer-events-auto"
+                : "relative shrink-0 bg-transparent pt-[max(0.3rem,env(safe-area-inset-top))]",
             )}
           >
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 items-center gap-0.5">
               {log ? (
                 <button
                   type="button"
@@ -143,24 +144,33 @@ export function StudioShell({ children }: { children: ReactNode }) {
                   data-cuelume-release=""
                   onClick={log.onOpen}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-xl bg-sun px-2 py-1",
+                    "flex items-center gap-1 rounded-full bg-surface px-2 py-1 shadow-[0_0_0_1.5px_rgba(59,42,20,0.14)] hover:bg-raised",
                     bumpOn && "anim-log-bump",
                   )}
                 >
-                  <span className="font-display text-[15px] font-semibold tracking-tight">EventLog</span>
-                  <span className={cn("grid min-w-5 place-items-center rounded-full bg-fg px-1.5 text-[11px] font-black text-sun", bumpOn && "anim-pip")}>
+                  <span className="font-display text-sm font-semibold tracking-tight">EventLog</span>
+                  <span className={cn("grid min-w-5 place-items-center rounded-full bg-sun px-1.5 text-[10px] font-black text-fg", bumpOn && "anim-pip")}>
                     {log.count}
                   </span>
                 </button>
               ) : splash ? (
-                <span className="chunk rounded-2xl border-[#d7b56a] bg-surface px-2.5 py-1.5 font-display text-[15px] font-semibold tracking-tight shadow-[0_1px_0_rgba(255,255,255,0.7)]">
+                <span className="px-1.5 font-display text-sm font-semibold tracking-tight text-fg">
                   EventLog
                 </span>
               ) : (
-                <p className="font-display text-[15px] font-semibold tracking-tight">EventLog</p>
+                <p className="px-1.5 font-display text-sm font-semibold tracking-tight">EventLog</p>
               )}
+            </div>
+            <div className="justify-self-center">
+              {next ? (
+                <Button size="sm" onClick={next.onClick} className="h-8 px-5 text-sm">
+                  {next.label}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex items-center justify-self-end gap-0.5">
               <ChipIcon label={t("help.title")} onClick={() => setHelp(true)}>
-                <CircleHelp className="size-5" />
+                <CircleHelp className="size-4" />
               </ChipIcon>
               <ChipIcon
                 label={soundOn ? "mute" : "sound"}
@@ -171,21 +181,12 @@ export function StudioShell({ children }: { children: ReactNode }) {
                   setSoundOn(nextOn);
                 }}
               >
-                {soundOn ? <Volume2 className="size-5" /> : <VolumeX className="size-5" />}
+                {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
               </ChipIcon>
-            </div>
-            <div className="justify-self-center">
-              {next ? (
-                <Button size="sm" onClick={next.onClick} className="h-8 px-4 text-sm">
-                  {next.label}
-                </Button>
-              ) : null}
-            </div>
-            <div className="justify-self-end">
               <LangSwitch />
             </div>
           </header>
-          <main className={cn("min-h-0 flex-1 pb-[max(0.35rem,env(safe-area-inset-bottom))]", splash ? "px-0" : "px-2 sm:px-3")}>
+          <main className={cn("min-h-0 flex-1", splash ? "px-0 pb-[max(0.35rem,env(safe-area-inset-bottom))]" : "px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3")}>
             {children}
           </main>
         </div>

@@ -62,7 +62,7 @@ export type Spotlight =
   | "play"
   | null;
 
-export function spotlightFor(id: MissionId, flags: Flags): Spotlight {
+export function spotlightFor(id: MissionId, flags: Flags, renamed = false): Spotlight {
   switch (id) {
     case 1:
       return "hatch";
@@ -73,7 +73,7 @@ export function spotlightFor(id: MissionId, flags: Flags): Spotlight {
     case 4:
       return "ferry";
     case 5:
-      return "name";
+      return renamed ? "ferry" : "name";
     case 6:
       return flags.played ? "fold" : "play";
   }

@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Undo2, Wind, X } from "lucide-react";
+import { Pencil, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   compactReplica,
   defaultName,
   herd,
   makeReplica,
+  MAX_BELLY,
+  MAX_ENERGY,
+  MAX_MOOD,
   newCritterId,
   rebuildProjection,
   replay,
@@ -115,27 +118,77 @@ function Face({
   );
 }
 
-function tiltOf(seed: string, i: number) {
-  return ((seed.charCodeAt(i % seed.length) + i * 19) % 17) - 8;
-}
-
-function Marks({ n, mark, pulse, seed, tone }: { n: number; mark: string; pulse?: boolean; seed: string; tone: string }) {
+function StatPips({
+  icon,
+  label,
+  value,
+  max,
+  pulse,
+  kind,
+}: {
+  icon: string;
+  label: string;
+  value: number;
+  max: number;
+  pulse?: boolean;
+  kind: "belly" | "mood" | "energy";
+}) {
+  const n = Math.max(0, Math.min(max, value));
   return (
-    <span className={cn("inline-flex h-8 shrink-0 items-center rounded-full px-1.5", tone)}>
-      {Array.from({ length: 3 }, (_, i) => (
-        <span
-          key={i}
-          className={cn("anim-tilt inline-block text-[18px] leading-none", pulse && i < n && "anim-pip")}
-          style={{
-            ["--tilt" as string]: `${tiltOf(seed + mark, i)}deg`,
-            opacity: i < n ? 1 : 0.2,
-            animationDelay: `${i * 90}ms`,
-          }}
-        >
-          {mark}
-        </span>
-      ))}
-    </span>
+    <div
+      className={cn(
+        "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1 py-1",
+        kind === "belly" && "bg-warn-dim",
+        kind === "mood" && "bg-[#f3e2ff]",
+        kind === "energy" && "bg-info-dim",
+      )}
+      aria-label={`${label} ${n}/${max}`}
+    >
+      <span className={cn("shrink-0 text-[14px] leading-none", pulse && "anim-pip")}>{icon}</span>
+      <span className="flex items-end gap-0.5">
+        {Array.from({ length: max }, (_, i) => {
+          const on = i < n;
+          if (kind === "belly") {
+            return (
+              <span
+                key={i}
+                className={cn(
+                  "size-2.5 rounded-full border-2",
+                  on ? "border-[#c77812] bg-[#ff9600] shadow-[0_1px_0_#c77812]" : "border-[#e8c96a]/80 bg-white/40",
+                  pulse && on && "anim-pip",
+                )}
+                style={{ animationDelay: `${i * 70}ms` }}
+              />
+            );
+          }
+          if (kind === "mood") {
+            return (
+              <span
+                key={i}
+                className={cn(
+                  "mb-px size-2 rotate-45 rounded-[2px]",
+                  on ? "bg-grape shadow-[0_1px_0_#a568cc]" : "bg-white/45",
+                  pulse && on && "anim-pip",
+                )}
+                style={{ animationDelay: `${i * 70}ms` }}
+              />
+            );
+          }
+          return (
+            <span
+              key={i}
+              className={cn(
+                "w-[5px] rounded-[2px]",
+                i === 0 ? "h-1.5" : i === 1 ? "h-2.5" : "h-3.5",
+                on ? "bg-sky shadow-[0_1px_0_#1899d6]" : "bg-white/45",
+                pulse && on && "anim-pip",
+              )}
+              style={{ animationDelay: `${i * 70}ms` }}
+            />
+          );
+        })}
+      </span>
+    </div>
   );
 }
 
@@ -177,16 +230,41 @@ function CritterCard({
   pending: Pending | null;
   onAct: (event: EventTag, pet: Critter, name?: string) => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(pet.name);
   const mine = pulse?.petId === pet.id && pulse.ok;
   const waiting = pending?.petId === pet.id;
   const fx = mine ? pulse?.event : undefined;
   const actions = [
-    { event: "Fed" as const, spot: "feed", mark: "🍪", tone: "border-[#d97a00] bg-[#ff9600] text-fg" },
-    { event: "Played" as const, spot: "play", mark: "✨", tone: "border-sky-deep bg-sky text-accent-fg" },
-    { event: "Slept" as const, spot: null, mark: "😴", tone: "border-grape-deep bg-grape text-accent-fg" },
-    { event: "Released" as const, spot: null, mark: "✕", tone: "border-[#d93838] bg-danger text-accent-fg" },
+    {
+      event: "Fed" as const,
+      spot: "feed" as const,
+      mark: "🍪",
+      label: "act.feed" as const,
+      vibe: "act-feed rounded-[1.35rem] border-[#c77812] bg-[linear-gradient(180deg,#ffc44d_0%,#ff9600_72%)] text-fg",
+    },
+    {
+      event: "Played" as const,
+      spot: "play" as const,
+      mark: "✨",
+      label: "act.play" as const,
+      vibe: "act-play rounded-2xl border-sky-deep bg-[linear-gradient(165deg,#7ee0ff_0%,#1cb0f6_70%)] text-accent-fg",
+    },
+    {
+      event: "Slept" as const,
+      spot: null,
+      mark: "😴",
+      label: "act.sleep" as const,
+      vibe: "act-sleep rounded-full border-[#7a4bb5] bg-[linear-gradient(180deg,#e4b8ff_0%,#ce82ff_78%)] text-accent-fg",
+    },
+    {
+      event: "Released" as const,
+      spot: null,
+      mark: "✕",
+      label: "act.release" as const,
+      vibe: "act-release rounded-lg border-[#b42323] bg-[linear-gradient(180deg,#ff8585_0%,#e23b3b_80%)] text-accent-fg",
+    },
   ];
 
   return (
@@ -218,7 +296,8 @@ function CritterCard({
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
-              className={cn("h-7 w-full rounded-lg bg-inset px-2 text-sm font-black text-fg", spot === "name" && "ring-2 ring-accent")}
+              data-guide={spot === "name" ? t("guide.rename") : undefined}
+              className={cn("h-8 w-full rounded-lg bg-inset px-2 text-base font-black text-fg ring-2 ring-grape", spot === "name" && "guide-spot")}
             />
           ) : (
             <button
@@ -227,15 +306,20 @@ function CritterCard({
                 setDraft(pet.name);
                 setEditing(true);
               }}
-              className={cn("block max-w-full truncate text-left text-base font-black", spot === "name" && "rounded-lg ring-2 ring-accent")}
+              data-guide={spot === "name" ? t("guide.rename") : undefined}
+              className={cn(
+                "flex max-w-full items-center gap-1 rounded-lg bg-inset px-1.5 py-0.5 text-left",
+                spot === "name" && "guide-spot",
+              )}
             >
-              {pet.name}
+              <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
+              <Pencil className="size-3.5 shrink-0 text-muted" aria-hidden />
             </button>
           )}
-          <div className="mt-1 flex flex-nowrap items-center gap-1.5">
-            <Marks n={pet.belly} pulse={mine && fx === "Fed"} mark="🍪" seed={pet.id} tone="bg-warn-dim" />
-            <Marks n={pet.mood} pulse={mine && fx === "Played"} mark="✨" seed={pet.id} tone="bg-[#f3e2ff]" />
-            <Marks n={pet.energy} pulse={mine && fx === "Slept"} mark="😴" seed={pet.id} tone="bg-info-dim" />
+          <div className="mt-1 flex min-w-0 gap-1">
+            <StatPips icon="🍪" label={t("stat.belly")} value={pet.belly} max={MAX_BELLY} pulse={mine && fx === "Fed"} kind="belly" />
+            <StatPips icon="✨" label={t("stat.mood")} value={pet.mood} max={MAX_MOOD} pulse={mine && fx === "Played"} kind="mood" />
+            <StatPips icon="😴" label={t("stat.energy")} value={pet.energy} max={MAX_ENERGY} pulse={mine && fx === "Slept"} kind="energy" />
           </div>
         </div>
       </div>
@@ -246,18 +330,19 @@ function CritterCard({
             type="button"
             disabled={busy}
             onClick={() => onAct(action.event, pet)}
-            aria-label={action.event}
+            aria-label={t(action.label)}
             className={cn(
-              "chunk chunk-sm flex h-10 flex-col items-center justify-center gap-0 rounded-xl px-0 py-1",
-              action.tone,
+              "chunk chunk-sm relative flex h-9 items-center justify-center px-0",
+              action.vibe,
               "disabled:cursor-not-allowed disabled:opacity-40",
-              action.spot && spot === action.spot && "anim-hint",
+              action.spot && spot === action.spot && "guide-spot",
               waiting && pending?.event === action.event && "brightness-110",
               mine && fx === action.event && "anim-pop",
             )}
+            data-guide={action.spot && spot === action.spot ? t("guide.tap") : undefined}
           >
-            <span className="text-[15px] leading-none">{action.mark}</span>
-            <span className="text-[10px] leading-none font-black">{action.event}</span>
+            {action.event === "Slept" ? <span className="act-z" aria-hidden>z</span> : null}
+            <span className="act-mark text-[22px] leading-none">{action.mark}</span>
           </button>
         ))}
       </div>
@@ -310,29 +395,33 @@ function Isle({
         lit && "anim-flash",
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-2 py-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <p className={cn("min-w-0 truncate text-sm font-black", selected && "rounded-lg bg-surface px-1.5 py-0.5")}>{t(sun ? "isle.sun" : "isle.moon")}</p>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onOpenLog(); }}
-            className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[11px] font-black"
-          >
-            #{replica.journal.length}
-          </button>
-        </div>
+      <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-1.5">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenLog(); }}
+          className={cn(
+            "flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors duration-200",
+            selected
+              ? cn("anim-isle-pick shadow-[0_2px_0_rgba(59,42,20,0.14)]", sun ? "bg-raised" : "bg-sky text-accent-fg")
+              : "bg-surface/90",
+          )}
+          aria-label={t("isle.vault")}
+        >
+          <span className="min-w-0 truncate text-sm font-black">{t(sun ? "isle.sun" : "isle.moon")}</span>
+          <span className={cn("shrink-0 text-[11px] font-black", selected && !sun ? "text-accent-fg/80" : "text-muted")}>#{replica.journal.length}</span>
+        </button>
         {locked ? null : (
-          <div className="flex shrink-0 gap-1">
-            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length === 0} onClick={(e) => { e.stopPropagation(); onStorm(); }} className={cn("h-7 px-2", spot === "storm" && "ring-2 ring-fg")} aria-label="wipe">
+          <div className="flex shrink-0 gap-2">
+            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length === 0} onClick={(e) => { e.stopPropagation(); onStorm(); }} className={cn("h-7 px-2", spot === "storm" && "guide-spot")} data-guide={spot === "storm" ? t("guide.tap") : undefined} aria-label={t("isle.storm")}>
               <Wind className="size-3.5" />
-              <span className="text-[10px] font-black">wipe</span>
+              <span className="text-[10px] font-black">{t("isle.storm")}</span>
             </Button>
-            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length === 0} onClick={(e) => { e.stopPropagation(); onReplay(); }} className={cn("h-7 px-2", spot === "replay" && "ring-2 ring-fg")} aria-label="replay">
+            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length === 0} onClick={(e) => { e.stopPropagation(); onReplay(); }} className={cn("h-7 px-2", spot === "replay" && "guide-spot")} data-guide={spot === "replay" ? t("guide.tap") : undefined} aria-label={t("isle.replay")}>
               <Undo2 className="size-3.5" />
-              <span className="text-[10px] font-black">replay</span>
+              <span className="text-[10px] font-black">{t("isle.replay")}</span>
             </Button>
-            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length < 2} onClick={(e) => { e.stopPropagation(); onFold(); }} className={cn("h-7 px-2", spot === "fold" && "ring-2 ring-fg")} aria-label="compact">
-              <span className="text-[10px] font-black">compact</span>
+            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length < 2} onClick={(e) => { e.stopPropagation(); onFold(); }} className={cn("h-7 px-2", spot === "fold" && "guide-spot")} data-guide={spot === "fold" ? t("guide.tap") : undefined} aria-label={t("isle.fold")}>
+              <span className="text-[10px] font-black">{t("isle.fold")}</span>
             </Button>
           </div>
         )}
@@ -347,8 +436,8 @@ function Isle({
         </div>
       ) : (
         <div className="mx-1 mb-1.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain p-1">
-          {pets.map((pet) => (
-            <CritterCard key={pet.id} pet={pet} spot={spot} busy={busy} pulse={pulse} pending={pending} onAct={onAct} />
+          {pets.map((pet, i) => (
+            <CritterCard key={pet.id} pet={pet} spot={i === 0 ? spot : null} busy={busy} pulse={pulse} pending={pending} onAct={onAct} />
           ))}
         </div>
       )}
@@ -363,40 +452,51 @@ function TimelineBar({
   forge: number;
   failing: boolean;
 }) {
-  const fill = forge < 0 ? 0 : Math.min(forge, failing ? 2 : forge) / 3;
+  const { t } = useI18n();
+  const running = forge >= 0;
   return (
-    <div className="shrink-0 px-4 pt-1 pb-4">
-      <div className="relative flex items-start justify-between">
-        <div className="pointer-events-none absolute top-[7px] right-3 left-3 h-[3px] rounded-full bg-faint" />
-        <div
-          className="pointer-events-none absolute top-[7px] left-3 h-[3px] rounded-full bg-accent transition-[width] duration-500"
-          style={{ width: `calc(${fill} * (100% - 1.5rem))` }}
-        />
-        {STEPS.map((label, i) => {
-          const on = forge === i;
-          const done = forge > i && !(failing && i >= 2);
-          const dead = failing && i === 2;
-          const locked = failing && i === 3;
-          return (
-            <div key={label} className="relative z-10 flex w-14 flex-col items-center gap-1">
+    <ol
+      className="flex shrink-0 items-center gap-0 px-0.5 py-1.5"
+      aria-label="EventLog"
+    >
+      {STEPS.map((label, i) => {
+        const on = forge === i;
+        const done = forge > i && !(failing && i >= 2);
+        const dead = failing && i === 2;
+        const locked = failing && i === 3;
+        const lit = running && forge >= i && !locked;
+        return (
+          <li key={label} className="flex min-w-0 flex-1 items-center">
+            {i > 0 ? (
               <span
                 className={cn(
-                  "size-4 rounded-full",
-                  dead && "anim-shake bg-danger",
-                  locked && "bg-faint",
-                  on && !dead && "anim-pop bg-accent ring-4 ring-ok-dim",
-                  done && "bg-accent",
-                  !on && !done && !dead && !locked && "bg-surface shadow-[0_0_0_3px_#e8c96a]",
+                  "relative mx-0.5 h-[3px] w-2 shrink-0 overflow-hidden rounded-full sm:mx-1 sm:w-2.5",
+                  lit && !dead ? "bg-accent" : dead && i === 2 ? "bg-danger" : "bg-faint",
                 )}
-              />
-              <span className={cn("text-[11px] font-extrabold", on || dead ? "text-fg" : "text-subtle")}>
-                {label.replace("()", "")}
+              >
+                {on ? (
+                  <span className="anim-pipe-run absolute inset-y-0 left-0 w-full bg-gradient-to-r from-transparent via-white to-transparent" />
+                ) : null}
               </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+            ) : null}
+            <span
+              aria-current={on ? "step" : undefined}
+              className={cn(
+                "min-w-0 flex-1 truncate rounded-full px-1 py-[5px] text-center text-[10px] font-black leading-none tracking-tight sm:text-[11px]",
+                dead && "anim-shake bg-danger text-accent-fg",
+                locked && "bg-faint text-subtle",
+                on && !dead && "anim-pipe-live bg-accent text-accent-fg",
+                done && "bg-accent text-accent-fg",
+                !running && "bg-surface text-subtle",
+                running && !on && !done && !dead && !locked && "bg-surface text-subtle",
+              )}
+            >
+              {t(`forge.${i + 1}` as MessageKey)}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -540,7 +640,8 @@ export function Workshop() {
   const run = useRef(0);
 
   const moonOpen = mission === 0 || mission >= 4;
-  const spot: Spotlight = mission !== 0 && !won ? spotlightFor(mission, flags) : null;
+  const renamed = world.sun.journal.some((e) => e.event === "Named") || world.moon.journal.some((e) => e.event === "Named");
+  const spot: Spotlight = mission !== 0 && !won ? spotlightFor(mission, flags, renamed) : null;
   const logCount = world.sun.journal.length + world.moon.journal.length;
   const prevLog = useRef(0);
   const logBump = useRef(0);
@@ -792,6 +893,10 @@ export function Workshop() {
   if (!seated) {
     return (
       <div className="flex h-full min-h-0 flex-col">
+        <div
+          aria-hidden
+          className="shrink-0 bg-hero-sky h-[max(4.75rem,calc(env(safe-area-inset-top)+4rem))] sm:h-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] lg:h-0"
+        />
         <img
           src="/hero.jpg"
           alt="EventLog Isles"
@@ -830,8 +935,8 @@ export function Workshop() {
   return (
     <div className="relative flex h-full min-h-0 flex-col gap-1">
       <div className="shrink-0">
-        <div className="relative flex h-8 items-center gap-2">
-          <div className="flex min-w-0 flex-1 gap-1">
+        <div className="relative flex h-5 items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 gap-0.5">
             {([1, 2, 3, 4, 5, 6] as const).map((n) => {
               const filled = mission === 0 || n < mission || (n === mission && won);
               const here = mission !== 0 && n === mission && !won;
@@ -839,7 +944,7 @@ export function Workshop() {
                 <span
                   key={n}
                   className={cn(
-                    "h-3 flex-1 rounded-full",
+                    "h-1.5 flex-1 rounded-full",
                     filled && "bg-accent",
                     here && "bg-fg",
                     !filled && !here && "bg-faint",
@@ -849,14 +954,14 @@ export function Workshop() {
             })}
           </div>
           {mission === 0 ? null : (
-            <span className="shrink-0 rounded-full bg-surface px-2 py-0.5 text-[11px] font-black text-subtle">
+            <span className="shrink-0 rounded-full bg-surface px-1.5 py-px text-[10px] font-black leading-none text-subtle">
               {t("hud.step", { n: mission })}
             </span>
           )}
         </div>
-        <div className="mt-1 min-w-0">
-          <p className="truncate text-sm font-black leading-tight">{won ? win : title}</p>
-          <p className="truncate text-[11px] leading-tight font-semibold text-muted">{won ? title : hint}</p>
+        <div className="mt-0.5 min-w-0">
+          <p className="text-lg font-black leading-snug sm:text-xl">{won ? win : title}</p>
+          <p className="mt-0.5 text-sm leading-snug font-semibold text-muted sm:text-base">{won ? title : hint}</p>
         </div>
       </div>
 
@@ -878,30 +983,34 @@ export function Workshop() {
             onPick={() => setActive("sun")}
             onOpenLog={() => setLogView("sun")}
           />
-          <div className="flex shrink-0 gap-1.5">
-            <Button size="sm" className={cn("h-8 flex-1 text-xs", spot === "ferry" && "ring-2 ring-fg")} disabled={busy || !moonOpen} onClick={() => void ferry("sun", "moon")}>
-              sync ↓
-            </Button>
-            <Button size="sm" variant="sky" className="h-8 flex-1 text-xs" disabled={busy || !moonOpen} onClick={() => void ferry("moon", "sun")}>
-              sync ↑
-            </Button>
-          </div>
-          <Isle
-            replica={world.moon}
-            locked={!moonOpen}
-            selected={active === "moon"}
-            lit={lit === "moon"}
-            spot={active === "moon" ? spot : null}
-            busy={busy}
-            pulse={pulse}
-            pending={pending}
-            onAct={onCardAct("moon")}
-            onStorm={() => void storm("moon")}
-            onReplay={() => void doReplay("moon")}
-            onFold={() => fold("moon")}
-            onPick={() => setActive("moon")}
-            onOpenLog={() => setLogView("moon")}
-          />
+          {moonOpen ? (
+            <>
+              <div className="flex shrink-0 gap-1.5">
+                <Button size="sm" className={cn("h-8 flex-1 text-xs", spot === "ferry" && "guide-spot")} data-guide={spot === "ferry" ? t("guide.tap") : undefined} disabled={busy} onClick={() => void ferry("sun", "moon")}>
+                  {t("act.ferry")}
+                </Button>
+                <Button size="sm" variant="sky" className="h-8 flex-1 text-xs" disabled={busy} onClick={() => void ferry("moon", "sun")}>
+                  {t("act.ferryBack")}
+                </Button>
+              </div>
+              <Isle
+                replica={world.moon}
+                locked={false}
+                selected={active === "moon"}
+                lit={lit === "moon"}
+                spot={active === "moon" ? spot : null}
+                busy={busy}
+                pulse={pulse}
+                pending={pending}
+                onAct={onCardAct("moon")}
+                onStorm={() => void storm("moon")}
+                onReplay={() => void doReplay("moon")}
+                onFold={() => fold("moon")}
+                onPick={() => setActive("moon")}
+                onOpenLog={() => setLogView("moon")}
+              />
+            </>
+          ) : null}
         </div>
         {logView ? (
           <EventsDialog
@@ -922,27 +1031,29 @@ export function Workshop() {
         ) : null}
       </div>
 
-      <TimelineBar forge={forge} failing={failing} />
-      <StepToast show={toastOn} failing={failing} text={stepHint} />
-
-      <div className="grid shrink-0 grid-cols-4 gap-1.5">
-        {SPECIES.map((sp) => (
-          <Button
-            key={sp}
-            variant={sp === "pip" ? "sun" : sp === "nub" ? "sky" : "primary"}
-            disabled={busy || herd(world[active]).length >= 2}
-            onClick={() => void hatch(sp)}
-            className={cn("h-11 gap-1 px-1 text-xs", spot === "hatch" && "ring-2 ring-fg")}
-          >
-            <span className="size-6">
-              <Face pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }} size={28} />
-            </span>
-            {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
+      <div className="flex shrink-0 flex-col gap-2.5 pt-2">
+        <TimelineBar forge={forge} failing={failing} />
+        <StepToast show={toastOn} failing={failing} text={stepHint} />
+        <div className="grid shrink-0 grid-cols-4 gap-1.5">
+          {SPECIES.map((sp) => (
+            <Button
+              key={sp}
+              variant={sp === "pip" ? "sun" : sp === "nub" ? "sky" : "primary"}
+              disabled={busy || herd(world[active]).length >= 2}
+              onClick={() => void hatch(sp)}
+              className={cn("h-11 gap-1 px-1 text-xs", spot === "hatch" && sp === "pip" && "guide-spot")}
+              data-guide={spot === "hatch" && sp === "pip" ? t("guide.tap") : undefined}
+            >
+              <span className="size-6">
+                <Face pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }} size={28} />
+              </span>
+              {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
+            </Button>
+          ))}
+          <Button variant="quiet" disabled={busy} onClick={reset} className="h-11 text-xs">
+            reset
           </Button>
-        ))}
-        <Button variant="quiet" disabled={busy} onClick={reset} className="h-11 text-xs">
-          reset
-        </Button>
+        </div>
       </div>
     </div>
   );

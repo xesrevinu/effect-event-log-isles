@@ -73,11 +73,11 @@ const zh = {
   "ms.3.win": "清掉的只是投影。账本还记得谁住在这儿。",
 
   "ms.4.title": "坐船过去",
-  "ms.4.hint": "点两岛中间的同步，月亮岛会收到同一只。",
+  "ms.4.hint": "点「去月亮岛」，月亮岛会收到同一只。",
   "ms.4.win": "渡过去的是事件，不是把整座岛复制一份。",
 
   "ms.5.title": "两边起名",
-  "ms.5.hint": "点它的名字，两边改成不一样的，再同步一次。",
+  "ms.5.hint": "点它的名字，两边改成不一样的，再渡一次。",
   "ms.5.win": "同一个 primaryKey，两边各自写下了不同的事件。",
 
   "ms.6.title": "折成一条",
@@ -91,6 +91,8 @@ const zh = {
   "hud.free": "自由玩",
   "hud.again": "再来一局",
   "hud.step": "{n}/6",
+  "guide.tap": "点这里",
+  "guide.rename": "改名字",
 
   "isle.sun": "太阳岛",
   "isle.moon": "月亮岛",
@@ -106,8 +108,8 @@ const zh = {
   "act.sleep": "睡",
   "act.release": "放生",
   "act.hatch": "孵化",
-  "act.ferry": "同步",
-  "act.ferryBack": "回航",
+  "act.ferry": "去月亮岛",
+  "act.ferryBack": "回太阳岛",
   "tag.Hatched": "Hatched",
   "tag.Named": "Named",
   "tag.Fed": "Fed",
@@ -163,7 +165,7 @@ const zh = {
   "cap.fold": "压缩好了。回放结果一样。",
   "cap.conflict": "同一只，两边都改过。",
 
-  "forge.1": "client()",
+  "forge.1": "client",
   "forge.2": "EventGroup",
   "forge.3": "handler",
   "forge.4": "journal",
@@ -211,11 +213,11 @@ const en: Record<keyof typeof zh, string> = {
   "ms.3.win": "You only cleared the projection. The journal still remembers who lives here.",
 
   "ms.4.title": "Cross the water",
-  "ms.4.hint": "Tap sync between the isles. Moon Isle receives the same critter.",
+  "ms.4.hint": "Tap “To Moon Isle”. Moon Isle receives the same critter.",
   "ms.4.win": "You synced events, not a copy of the island.",
 
   "ms.5.title": "Two names",
-  "ms.5.hint": "Tap the name, call it something different on each isle, then sync again.",
+  "ms.5.hint": "Tap the name, call it something different on each isle, then sail again.",
   "ms.5.win": "Same primaryKey — each side wrote a different entry.",
 
   "ms.6.title": "Fold the history",
@@ -229,6 +231,8 @@ const en: Record<keyof typeof zh, string> = {
   "hud.free": "Free play",
   "hud.again": "Play again",
   "hud.step": "{n}/6",
+  "guide.tap": "Tap here",
+  "guide.rename": "Rename",
 
   "isle.sun": "Sun Isle",
   "isle.moon": "Moon Isle",
@@ -244,8 +248,8 @@ const en: Record<keyof typeof zh, string> = {
   "act.sleep": "Sleep",
   "act.release": "Release",
   "act.hatch": "Hatch",
-  "act.ferry": "Sync",
-  "act.ferryBack": "Return",
+  "act.ferry": "To Moon Isle",
+  "act.ferryBack": "Back to Sun",
   "tag.Hatched": "Hatched",
   "tag.Named": "Named",
   "tag.Fed": "Fed",
@@ -301,7 +305,7 @@ const en: Record<keyof typeof zh, string> = {
   "cap.fold": "Compacted. Replay matches.",
   "cap.conflict": "Same critter, both sides wrote.",
 
-  "forge.1": "client()",
+  "forge.1": "client",
   "forge.2": "EventGroup",
   "forge.3": "handler",
   "forge.4": "journal",

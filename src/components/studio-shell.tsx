@@ -131,7 +131,7 @@ export function StudioShell({ children }: { children: ReactNode }) {
             className={cn(
               "z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 sm:px-3",
               splash
-                ? "pointer-events-none absolute inset-x-0 top-0 bg-transparent pt-[max(0.55rem,env(safe-area-inset-top))] pb-4 [&>*]:pointer-events-auto"
+                ? "pointer-events-none relative shrink-0 bg-bg pt-[max(0.7rem,env(safe-area-inset-top))] pb-3 [&>*]:pointer-events-auto sm:absolute sm:inset-x-0 sm:top-0 sm:bg-transparent sm:pb-4 sm:pt-[max(0.55rem,env(safe-area-inset-top))]"
                 : "relative shrink-0 bg-bg pt-[max(0.3rem,env(safe-area-inset-top))]",
             )}
           >

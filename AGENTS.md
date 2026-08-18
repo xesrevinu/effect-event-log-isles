@@ -637,3 +637,35 @@ prompt:    often one line — expand into a full product
 never:     ask the user to run commands, open localhost, or QA your environment
 never:     delete or abandon /workspace/startup.sh
 ```
+
+---
+
+## Cursor Cloud specific instructions
+
+This section is for Cursor Cloud agents. The startup update script already runs
+`npm install` (and installs the Playwright Chromium used for QA), so a fresh pod
+boots with dependencies ready — do not re-run those unless something is missing.
+
+- **App:** `EventLog Isles` — a single-page React 19 + TanStack Start app (a
+  critter-sim demo of an append-only Effect EventLog). Entry route
+  `src/routes/index.tsx` → `src/components/workshop.tsx`.
+- **Standard commands** live in `package.json` `scripts` — use them rather than
+  duplicating: `npm run dev` (serves `0.0.0.0:8080`), `npm run lint`,
+  `npm run typecheck`, `npm test` (node:test over `scripts/**/*.test.mjs`),
+  `npm run build` (Vite + Vercel/Nitro, then `db:migrate`).
+- **Contrary to the template above, `node_modules` is NOT pre-seeded** on Cursor
+  Cloud VMs; the update script installs it. Playwright's browser is also not
+  bundled — `npx playwright install chromium` is needed for
+  `scripts/browser-smoke.mjs` (the update script handles this).
+- **Running the dev server:** prefer `sh /workspace/startup.sh` — it is
+  idempotent (probes `http://127.0.0.1:8080/` and exits if already up) and
+  backgrounds `npm run dev`, logging to `/tmp/app-startup.log`.
+- **No database or env vars needed for local dev.** With `DATABASE_URL` unset,
+  the DB uses the in-process PGLite fallback and `npm run build`'s `db:migrate`
+  step logs "skipping" instead of failing. Do not create a `.env`.
+- **Build gotcha:** the Nitro Vercel preset only activates during
+  `npm run build` (gated in `vite.config.ts`); never enable it in dev or it
+  opens a second port and breaks the single-port 8080 preview.
+- Lint currently reports warnings only (0 errors) on a clean checkout; that is
+  expected, not a regression.
+

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Clapperboard, Smartphone, Sparkles, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -136,34 +136,10 @@ function StatPips({
   kind: "belly" | "mood" | "energy";
 }) {
   const n = Math.max(0, Math.min(max, value));
-  const [idle, setIdle] = useState(false);
-  useEffect(() => {
-    if (prefersReducedMotion()) return;
-    let alive = true;
-    let waitId = 0;
-    let clearId = 0;
-    const arm = () => {
-      waitId = window.setTimeout(
-        () => {
-          if (!alive) return;
-          setIdle(true);
-          clearId = window.setTimeout(() => {
-            if (!alive) return;
-            setIdle(false);
-            arm();
-          }, 620);
-        },
-        3800 + Math.random() * 7200,
-      );
-    };
-    waitId = window.setTimeout(arm, 600 + Math.random() * 2800);
-    return () => {
-      alive = false;
-      window.clearTimeout(waitId);
-      window.clearTimeout(clearId);
-    };
-  }, [kind]);
-  const hop = Boolean(pulse) || idle;
+  const hop = Boolean(pulse);
+  // Idle bounce is pure CSS (pip-breathe); stagger rows so the three stats
+  // don't hop in sync.
+  const breatheBase = kind === "belly" ? 0 : kind === "mood" ? 3100 : 6300;
   return (
     <div
       className={cn(
@@ -186,9 +162,9 @@ function StatPips({
                   on
                     ? "border-[#c77812] bg-[#ff9600] shadow-[0_1px_0_#c77812]"
                     : "border-[#e8c96a]/80 bg-white/40",
-                  hop && on && "anim-pip",
+                  on && (hop ? "anim-pip" : "pip-breathe"),
                 )}
-                style={{ animationDelay: `${i * 70}ms` }}
+                style={{ animationDelay: `${(hop ? 0 : breatheBase) + i * 70}ms` }}
               />
             );
           }
@@ -199,9 +175,9 @@ function StatPips({
                 className={cn(
                   "mb-px size-3.5 rotate-45 rounded-[3px]",
                   on ? "bg-sky shadow-[0_1px_0_#1899d6]" : "bg-white/45",
-                  hop && on && "anim-pip",
+                  on && (hop ? "anim-pip" : "pip-breathe"),
                 )}
-                style={{ animationDelay: `${i * 70}ms` }}
+                style={{ animationDelay: `${(hop ? 0 : breatheBase) + i * 70}ms` }}
               />
             );
           }
@@ -212,9 +188,9 @@ function StatPips({
                 "w-2 rounded-[3px]",
                 i === 0 ? "h-2.5" : i === 1 ? "h-3.5" : "h-5",
                 on ? "bg-grape shadow-[0_1px_0_#a568cc]" : "bg-white/45",
-                hop && on && "anim-pip",
+                on && (hop ? "anim-pip" : "pip-breathe"),
               )}
-                style={{ animationDelay: `${i * 70}ms` }}
+                style={{ animationDelay: `${(hop ? 0 : breatheBase) + i * 70}ms` }}
             />
           );
         })}
@@ -246,7 +222,40 @@ type Attempt = {
   isle: ReplicaId;
 };
 
-function CritterCard({
+const CARD_ACTIONS = [
+  {
+    event: "Fed" as const,
+    spot: "feed" as const,
+    icon: "/icons/feed.webp",
+    label: "act.feed" as const,
+    vibe: "act-feed rounded-[1.35rem] border-[#c77812] bg-[linear-gradient(180deg,#ffc44d_0%,#ff9600_72%)] text-fg",
+  },
+  {
+    event: "Played" as const,
+    spot: "play" as const,
+    icon: "/icons/play.webp",
+    label: "act.play" as const,
+    vibe: "act-play rounded-2xl border-sky-deep bg-[linear-gradient(165deg,#7ee0ff_0%,#1cb0f6_70%)] text-accent-fg",
+  },
+  {
+    event: "Slept" as const,
+    spot: null,
+    icon: "/icons/sleep.webp",
+    label: "act.sleep" as const,
+    vibe: "act-sleep rounded-full border-[#7a4bb5] bg-[linear-gradient(180deg,#e4b8ff_0%,#ce82ff_78%)] text-accent-fg",
+  },
+  {
+    event: "Released" as const,
+    spot: null,
+    icon: "/icons/release.webp",
+    label: "act.release" as const,
+    vibe: "act-release rounded-lg border-[#b42323] bg-[linear-gradient(180deg,#ff8585_0%,#e23b3b_80%)] text-accent-fg",
+  },
+];
+
+/** Memoized: forge-step ticks during an action re-render Workshop ~1/s; cards
+ * only need to redraw for their own pet's pulse/pending slice. */
+const CritterCard = memo(function CritterCard({
   pet,
   spot,
   busy,
@@ -268,36 +277,7 @@ function CritterCard({
   const waiting = pending?.petId === pet.id;
   const fx = mine ? pulse?.event : undefined;
   const sequenced = usePetClip(pet.species, "idle");
-  const actions = [
-    {
-      event: "Fed" as const,
-      spot: "feed" as const,
-      icon: "/icons/feed.png",
-      label: "act.feed" as const,
-      vibe: "act-feed rounded-[1.35rem] border-[#c77812] bg-[linear-gradient(180deg,#ffc44d_0%,#ff9600_72%)] text-fg",
-    },
-    {
-      event: "Played" as const,
-      spot: "play" as const,
-      icon: "/icons/play.png",
-      label: "act.play" as const,
-      vibe: "act-play rounded-2xl border-sky-deep bg-[linear-gradient(165deg,#7ee0ff_0%,#1cb0f6_70%)] text-accent-fg",
-    },
-    {
-      event: "Slept" as const,
-      spot: null,
-      icon: "/icons/sleep.png",
-      label: "act.sleep" as const,
-      vibe: "act-sleep rounded-full border-[#7a4bb5] bg-[linear-gradient(180deg,#e4b8ff_0%,#ce82ff_78%)] text-accent-fg",
-    },
-    {
-      event: "Released" as const,
-      spot: null,
-      icon: "/icons/release.png",
-      label: "act.release" as const,
-      vibe: "act-release rounded-lg border-[#b42323] bg-[linear-gradient(180deg,#ff8585_0%,#e23b3b_80%)] text-accent-fg",
-    },
-  ];
+  const actions = CARD_ACTIONS;
 
   return (
     <div
@@ -328,10 +308,10 @@ function CritterCard({
               key={pulse?.nonce}
               src={
                 fx === "Fed"
-                  ? "/icons/feed.png"
+                  ? "/icons/feed.webp"
                   : fx === "Played"
-                    ? "/icons/play.png"
-                    : "/icons/sleep.png"
+                    ? "/icons/play.webp"
+                    : "/icons/sleep.webp"
               }
               alt=""
               className="act-burst pointer-events-none absolute -top-3 -right-2 z-20 size-8 object-contain"
@@ -375,7 +355,7 @@ function CritterCard({
               >
                 <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
                 <span className="name-pencil-sway shrink-0">
-                  <img src="/icons/pencil.png" alt="" className="name-pencil size-5 object-contain" />
+                  <img src="/icons/pencil.webp" alt="" className="name-pencil size-5 object-contain" />
                 </span>
               </button>
             )}
@@ -440,9 +420,11 @@ function CritterCard({
       </div>
     </div>
   );
-}
+});
 
-function Isle({
+/** Memoized with stable callbacks from Workshop, so forge-tick renders skip
+ * both boards entirely. */
+const Isle = memo(function Isle({
   replica,
   locked,
   selected,
@@ -518,7 +500,7 @@ function Isle({
           aria-label={t("isle.vault")}
         >
           <img
-            src={sun ? "/isles/sun.png" : "/isles/moon.png"}
+            src={sun ? "/isles/sun.webp" : "/isles/moon.webp"}
             alt=""
             width={56}
             height={56}
@@ -623,8 +605,8 @@ function Isle({
               pet={pet}
               spot={i === 0 ? spot : null}
               busy={busy}
-              pulse={pulse}
-              pending={pending}
+              pulse={pulse && pulse.petId === pet.id ? pulse : null}
+              pending={pending && pending.petId === pet.id ? pending : null}
               onAct={onAct}
             />
           ))
@@ -632,7 +614,7 @@ function Isle({
       </div>
     </section>
   );
-}
+});
 
 function TimelineBar({ forge, failing }: { forge: number; failing: boolean }) {
   const { t } = useI18n();
@@ -1224,11 +1206,27 @@ export function Workshop() {
     }, 1100);
   }
 
-  function onCardAct(isle: ReplicaId) {
-    return (event: EventTag, pet: Critter, name?: string) => {
-      void act(isle, event, event === "Named" ? { id: pet.id, name } : { id: pet.id });
-    };
-  }
+  // Stable per-isle callbacks (latest handlers via ref) so the memoized
+  // Isle/CritterCard trees skip the ~1/s forge-tick renders during actions.
+  const isleHandlers = useRef({ act, storm, doReplay, fold });
+  isleHandlers.current = { act, storm, doReplay, fold };
+  const isleCallbacks = useMemo(() => {
+    const forIsle = (isle: ReplicaId) => ({
+      onAct: (event: EventTag, pet: Critter, name?: string) => {
+        void isleHandlers.current.act(
+          isle,
+          event,
+          event === "Named" ? { id: pet.id, name } : { id: pet.id },
+        );
+      },
+      onStorm: () => void isleHandlers.current.storm(isle),
+      onReplay: () => void isleHandlers.current.doReplay(isle),
+      onFold: () => isleHandlers.current.fold(isle),
+      onPick: () => setActive(isle),
+      onOpenLog: () => setLogView(isle),
+    });
+    return { sun: forIsle("sun"), moon: forIsle("moon") };
+  }, []);
 
   async function hatch(species: Species) {
     const isle = moonOpen ? active : "sun";
@@ -1511,12 +1509,7 @@ export function Workshop() {
                   busy={busy}
                   pulse={pulse}
                   pending={pending}
-                  onAct={onCardAct("sun")}
-                  onStorm={() => void storm("sun")}
-                  onReplay={() => void doReplay("sun")}
-                  onFold={() => fold("sun")}
-                  onPick={() => setActive("sun")}
-                  onOpenLog={() => setLogView("sun")}
+                  {...isleCallbacks.sun}
                 />
               </div>
               {moonLane ? (
@@ -1562,12 +1555,7 @@ export function Workshop() {
                       busy={busy}
                       pulse={pulse}
                       pending={pending}
-                      onAct={onCardAct("moon")}
-                      onStorm={() => void storm("moon")}
-                      onReplay={() => void doReplay("moon")}
-                      onFold={() => fold("moon")}
-                      onPick={() => setActive("moon")}
-                      onOpenLog={() => setLogView("moon")}
+                      {...isleCallbacks.moon}
                     />
                   </div>
                 </div>
@@ -1599,11 +1587,17 @@ export function Workshop() {
                       {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
                     </Button>
                     <span
-                      className="absolute bottom-[42%] left-1/2 z-20 size-[4.5rem] -translate-x-1/2 cursor-pointer drop-shadow-[0_5px_8px_rgba(59,42,20,0.28)]"
+                      className="absolute bottom-[42%] left-1/2 z-20 size-[4.5rem] -translate-x-1/2 cursor-pointer"
                       onClick={() => {
                         if (!full) void hatch(sp);
                       }}
                     >
+                      {/* Static ground shadow: filter drop-shadow on a canvas
+                          that repaints ~10x/s re-blurs every frame. */}
+                      <span
+                        aria-hidden
+                        className="absolute bottom-0.5 left-1/2 h-2.5 w-12 -translate-x-1/2 rounded-full bg-[rgba(59,42,20,0.24)] blur-[3px]"
+                      />
                       <CritterSprite
                         roam
                         pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }}

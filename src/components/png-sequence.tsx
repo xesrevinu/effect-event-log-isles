@@ -8,7 +8,34 @@ import {
   peekPetSheet,
   sheetDrawRect,
   sheetSourceRect,
+  type PetSheet,
 } from "@/lib/png-sequence";
+
+/**
+ * One shared rAF drives every sprite canvas. Up to 7 sprites are live during
+ * play; per-instance loops each wake the main thread every vsync for clips
+ * that only change 10-24 times a second.
+ */
+type Tick = (now: number) => void;
+const ticks = new Set<Tick>();
+let sharedRaf = 0;
+
+function pump(now: number) {
+  for (const tick of ticks) tick(now);
+  sharedRaf = ticks.size > 0 ? requestAnimationFrame(pump) : 0;
+}
+
+function addTick(tick: Tick) {
+  ticks.add(tick);
+  if (!sharedRaf) sharedRaf = requestAnimationFrame(pump);
+  return () => {
+    ticks.delete(tick);
+    if (ticks.size === 0 && sharedRaf) {
+      cancelAnimationFrame(sharedRaf);
+      sharedRaf = 0;
+    }
+  };
+}
 
 export function PngSequence({
   sheet,
@@ -41,14 +68,17 @@ export function PngSequence({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let source: HTMLImageElement | undefined;
-    let raf = 0;
+    let sheetData: PetSheet | undefined;
+    let stop: (() => void) | undefined;
     let start = 0;
     let last = -1;
     let alive = true;
+    // CSS size is cached from the ResizeObserver so paint() never reads
+    // clientWidth in the hot path (a forced-layout read per frame otherwise).
+    let cssSize = canvas.clientWidth;
 
     const fit = () => {
-      const size = canvasBackingSize(canvas.clientWidth, window.devicePixelRatio || 1);
+      const size = canvasBackingSize(cssSize, window.devicePixelRatio || 1);
       if (canvas.width !== size || canvas.height !== size) {
         canvas.width = size;
         canvas.height = size;
@@ -56,16 +86,17 @@ export function PngSequence({
     };
 
     const paint = (index: number) => {
-      if (!source?.naturalWidth) return;
+      if (!sheetData || sheetData.width <= 0) return;
       last = index;
       fit();
-      const cell = sheetSourceRect(index, cols, rows, source.naturalWidth, source.naturalHeight);
+      const cell = sheetSourceRect(index, cols, rows, sheetData.width, sheetData.height);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
       if (cell.sw > 0 && cell.sh > 0) {
         const dest = sheetDrawRect(canvas.width, canvas.height);
-        ctx.drawImage(source, cell.sx, cell.sy, cell.sw, cell.sh, dest.dx, dest.dy, dest.dw, dest.dh);
+        const scale = dest.dw / cell.sw;
+        ctx.imageSmoothingEnabled = scale < 0.98;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(sheetData.source, cell.sx, cell.sy, cell.sw, cell.sh, dest.dx, dest.dy, dest.dw, dest.dh);
       }
     };
 
@@ -77,21 +108,21 @@ export function PngSequence({
       const index = hold ? 0 : frameIndex(elapsed, fps, count, loop);
       if (index !== last) paint(index);
       if (!hold && clipEnded(elapsed, fps, count, loop)) {
+        stop?.();
+        stop = undefined;
         ended.current?.();
-        return;
       }
-      raf = requestAnimationFrame(tick);
     };
 
-    const boot = (img: HTMLImageElement) => {
+    const boot = (loaded: PetSheet) => {
       if (!alive) return;
-      source = img;
+      sheetData = loaded;
       paint(0);
       if (prefersReducedMotion() && !loop) {
         ended.current?.();
         return;
       }
-      raf = requestAnimationFrame(tick);
+      stop = addTick(tick);
     };
 
     const cached = peekPetSheet(sheet);
@@ -99,16 +130,22 @@ export function PngSequence({
     else void decodePetSheet(sheet).then(boot, () => undefined);
 
     const refit = () => {
+      cssSize = canvas.clientWidth;
       if (last >= 0) paint(last);
       else fit();
     };
-    const ro = new ResizeObserver(refit);
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      cssSize = box ? box.width : canvas.clientWidth;
+      if (last >= 0) paint(last);
+      else fit();
+    });
     ro.observe(canvas);
     window.addEventListener("resize", refit);
 
     return () => {
       alive = false;
-      cancelAnimationFrame(raf);
+      stop?.();
       ro.disconnect();
       window.removeEventListener("resize", refit);
     };

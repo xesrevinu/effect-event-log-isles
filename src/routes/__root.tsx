@@ -4,13 +4,14 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { StudioShell } from "@/components/studio-shell";
 import { I18nProvider } from "@/lib/i18n-context";
 import { readLocaleHint } from "@/lib/read-locale-hint";
-import { allPetSheetUrls } from "@/lib/png-sequence";
+import { allPetIdleSheetUrls } from "@/lib/png-sequence";
 import appCss from "../styles.css?url";
 
-const petSheetLinks = allPetSheetUrls().map((href) => ({
-  rel: href.endsWith("/idle.png") ? "preload" : "prefetch",
+const petSheetLinks = allPetIdleSheetUrls().map((href) => ({
+  rel: "preload" as const,
   href,
   as: "image" as const,
+  type: "image/webp" as const,
 }));
 
 const APP_NAME = "EventLog Isles";

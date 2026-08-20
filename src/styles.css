@@ -180,17 +180,20 @@
   }
 }
 
+/* Press depth: translate + hide the depth edge via border-color (paint-only).
+   Transitioning border-bottom-width relayouts mid-tap, right when the main
+   thread is busiest. */
 .chunk {
   border-bottom-width: 5px;
   transition:
     transform 80ms ease-out,
-    border-width 80ms ease-out,
+    border-bottom-color 80ms ease-out,
     filter 80ms ease-out;
 }
 
 .chunk:not(:disabled):active {
   transform: translateY(4px);
-  border-bottom-width: 1px;
+  border-bottom-color: transparent;
   filter: brightness(0.96);
 }
 
@@ -200,7 +203,7 @@
 
 .chunk-sm:not(:disabled):active {
   transform: translateY(2px);
-  border-bottom-width: 1px;
+  border-bottom-color: transparent;
 }
 
 .chunk:not(:disabled):active::before {
@@ -424,7 +427,7 @@
     0 1px 0 rgba(59, 42, 20, 0.05);
   transition:
     transform 80ms ease-out,
-    border-bottom-width 80ms ease-out,
+    border-bottom-color 80ms ease-out,
     filter 80ms ease-out,
     color 140ms ease-out;
 }
@@ -437,7 +440,7 @@
 }
 .hud-chip:active {
   transform: translateY(2px);
-  border-bottom-width: 1px;
+  border-bottom-color: transparent;
   filter: brightness(0.98);
 }
 .hud-chip-off {
@@ -599,39 +602,46 @@
   }
 }
 
+/* Drift via transform on an oversized child layer: compositor-only, no
+   full-viewport repaint (background-position + blend repainted every frame). */
 .tex-ground {
   position: absolute;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
   pointer-events: none;
   -webkit-user-drag: none;
   user-select: none;
+}
+.tex-ground::before {
+  content: "";
+  position: absolute;
+  inset: -76px 0 0 -76px;
   background-image: url("/tex-plus.svg");
   background-size: 76px 76px;
   opacity: 0.07;
-  mix-blend-mode: multiply;
   animation: tex-ground-drift 28s linear infinite;
 }
 @keyframes tex-ground-drift {
   from {
-    background-position: 0 0;
+    transform: translate3d(0, 0, 0);
   }
   to {
-    background-position: 76px 76px;
+    transform: translate3d(76px, 76px, 0);
   }
 }
 
+/* Pulse via an ::after ring fading in/out — opacity/transform only.
+   Animating box-shadow repainted the spotlight region every frame. */
 @keyframes guide-pulse {
   0%,
   100% {
-    box-shadow:
-      0 0 0 2px #fffdf6,
-      0 0 0 4px var(--color-accent);
+    opacity: 0;
+    transform: scale(0.97);
   }
   50% {
-    box-shadow:
-      0 0 0 2px #fffdf6,
-      0 0 0 6px var(--color-accent-deep);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 @keyframes guide-tip-bob {
@@ -646,6 +656,19 @@
 .guide-spot {
   position: relative;
   z-index: 3;
+  box-shadow:
+    0 0 0 2px #fffdf6,
+    0 0 0 4px var(--color-accent);
+}
+.guide-spot::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  z-index: 2;
+  border-radius: inherit;
+  border: 2px solid var(--color-accent-deep);
+  opacity: 0;
+  pointer-events: none;
   animation: guide-pulse 1s ease-in-out infinite;
 }
 .guide-tip {
@@ -710,6 +733,25 @@
     transform: scale(1);
   }
 }
+/* Decorative pip hop as a mostly-idle CSS loop — replaces the per-card
+   self-rescheduling JS timers (12 chains with 4 pets) that re-rendered
+   React just to bounce dots. Uses the standalone `scale` property so the
+   mood diamonds keep their rotate-45 transform at rest. */
+@keyframes pip-breathe {
+  0%,
+  100% {
+    scale: 1;
+  }
+  2.4% {
+    scale: 1.5;
+  }
+  4.8% {
+    scale: 1;
+  }
+}
+.pip-breathe {
+  animation: pip-breathe 9.5s ease-in-out infinite;
+}
 @keyframes act-burst {
   0% {
     transform: translate(0, 6px) scale(0.45);
@@ -738,13 +780,14 @@
     transform: scale(1);
   }
 }
+/* One-shot confirm ring on the isle board; opacity-only via ::after. */
 @keyframes flash {
   0%,
   100% {
-    box-shadow: inset 0 0 0 0 transparent;
+    opacity: 0;
   }
   40% {
-    box-shadow: inset 0 0 0 4px #58cc02;
+    opacity: 1;
   }
 }
 @keyframes wiggle {
@@ -778,6 +821,17 @@
   }
 }
 .anim-flash {
+  position: relative;
+}
+.anim-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  border: 4px solid #58cc02;
+  opacity: 0;
+  pointer-events: none;
   animation: flash 700ms var(--ease-out);
 }
 .anim-wiggle {
@@ -901,16 +955,29 @@
   animation: pipe-run 700ms ease-in-out infinite;
 }
 
+/* Live-chip glow as a fading ::after halo — no box-shadow keyframes. */
 @keyframes pipe-live {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-accent) 50%, transparent);
+    opacity: 0;
+    transform: scale(0.96);
   }
   50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 18%, transparent);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 .anim-pipe-live {
+  position: relative;
+}
+.anim-pipe-live::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 4px solid color-mix(in srgb, var(--color-accent) 24%, transparent);
+  opacity: 0;
+  pointer-events: none;
   animation: pipe-live 900ms ease-in-out infinite;
 }
 
@@ -1017,7 +1084,7 @@
 }
 .name-edit:active:not(.name-edit-field) {
   transform: translateY(2px) rotate(0deg) scale(1);
-  border-bottom-width: 2px;
+  border-bottom-color: transparent;
   filter: brightness(0.98);
 }
 .name-edit-field {
@@ -1970,12 +2037,12 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   transition:
     transform 80ms ease-out,
-    border-bottom-width 80ms ease-out,
+    border-bottom-color 80ms ease-out,
     filter 80ms ease-out;
 }
 .help-choice:active {
   transform: translateY(2px);
-  border-bottom-width: 1px;
+  border-bottom-color: transparent;
 }
 .help-choice-on {
   border-color: color-mix(in oklab, var(--color-accent-deep) 40%, transparent);

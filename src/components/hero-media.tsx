@@ -4,7 +4,7 @@ import { prefersReducedMotion } from "@/lib/fx";
 
 const HERO_W = 1792;
 const HERO_H = 1008;
-const HERO_IMG = "/hero.jpg";
+const HERO_IMG = "/hero.webp";
 const HERO_VID = "/hero.mp4";
 
 const FRAME =

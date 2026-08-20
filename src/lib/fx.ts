@@ -36,6 +36,18 @@ function bus(audio: AudioContext) {
   return output;
 }
 
+// One shared 1s noise buffer: noise layers used to allocate + fill a fresh
+// AudioBuffer per cue (press fires on every pointerdown).
+let noiseBuffer: AudioBuffer | null = null;
+function sharedNoise(audio: AudioContext) {
+  if (!noiseBuffer || noiseBuffer.sampleRate !== audio.sampleRate) {
+    noiseBuffer = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuffer;
+}
+
 function render(audio: AudioContext, name: SoundName, volume: number) {
   const recipe = RECIPES[name];
   const master = audio.createGain();
@@ -77,12 +89,9 @@ function render(audio: AudioContext, name: SoundName, volume: number) {
       osc.stop(start + layer.attack + layer.decay + 0.05);
     } else {
       const duration = layer.attack + layer.decay + 0.05;
-      const length = Math.max(1, Math.floor(duration * audio.sampleRate));
-      const buffer = audio.createBuffer(1, length, audio.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
       const source = audio.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = sharedNoise(audio);
+      source.loop = true;
       const filter = audio.createBiquadFilter();
       filter.type = layer.filterType ?? "lowpass";
       filter.frequency.value = layer.filterFrequency ?? 1200;

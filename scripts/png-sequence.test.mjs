@@ -4,8 +4,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
+  SPRITE_HATCH_CSS,
+  SPRITE_SHEET_CELL,
+  allPetIdleSheetUrls,
   allPetSheetUrls,
   canvasBackingSize,
+  spriteDestSize,
   clipDir,
   clipEnded,
   defringeRgba,
@@ -113,6 +117,12 @@ test("canvasBackingSize follows the visible CSS box and device pixels", () => {
   assert.equal(canvasBackingSize(0, 3), 168);
 });
 
+test("sheet cells cover iPhone 3x hatch dest so the bitmap is never upscaled", () => {
+  assert.equal(Math.round(spriteDestSize(SPRITE_HATCH_CSS, 3)), 298);
+  assert.ok(SPRITE_SHEET_CELL >= Math.round(spriteDestSize(SPRITE_HATCH_CSS, 3)));
+  assert.deepEqual(allPetIdleSheetUrls(), ["/pets/pip/idle.webp", "/pets/nub/idle.webp", "/pets/bean/idle.webp"]);
+});
+
 test("sheetDrawRect sits a smaller cell on the canvas floor", () => {
   assert.deepEqual(sheetDrawRect(100, 100, 0.7), { dx: 15, dy: 30, dw: 70, dh: 70 });
   assert.deepEqual(sheetDrawRect(200, 80, 0.5), { dx: 50, dy: 40, dw: 100, dh: 40 });
@@ -126,18 +136,18 @@ test("sheetSourceRect crops one cell and can inset past a grid", () => {
 
 test("allPetSheetUrls lists every species clip, using authored sheet paths", () => {
   assert.deepEqual(allPetSheetUrls(), [
-    "/pets/pip/idle.png",
-    "/pets/pip/eat.png",
-    "/pets/pip/play.png",
-    "/pets/pip/sleep.png",
-    "/pets/nub/idle.png",
-    "/pets/nub/eat.png",
-    "/pets/nub/play.png",
-    "/pets/nub/sleep.png",
-    "/pets/bean/idle.png",
-    "/pets/bean/eat.png",
-    "/pets/bean/play.png",
-    "/pets/bean/sleep.png",
+    "/pets/pip/idle.webp",
+    "/pets/pip/eat.webp",
+    "/pets/pip/play.webp",
+    "/pets/pip/sleep.webp",
+    "/pets/nub/idle.webp",
+    "/pets/nub/eat.webp",
+    "/pets/nub/play.webp",
+    "/pets/nub/sleep.webp",
+    "/pets/bean/idle.webp",
+    "/pets/bean/eat.webp",
+    "/pets/bean/play.webp",
+    "/pets/bean/sleep.webp",
   ]);
   assert.equal(allPetSheetUrls({ pip: { idle: { count: 8, fps: 10, loop: true, sheet: "/custom/pip-idle.png" } } })[0], "/custom/pip-idle.png");
 });
@@ -150,13 +160,13 @@ test("public/pets/manifest.json maps full video rebuilds, not 16-frame strips", 
   assert.equal(pipIdle?.loop, true);
   assert.equal(pipIdle?.count, 145);
   assert.equal(pipIdle?.fps, 16);
-  assert.equal(pipIdle?.cols, 15);
-  assert.equal(pipIdle?.rows, 10);
+  assert.equal(pipIdle?.cols, 13);
+  assert.equal(pipIdle?.rows, 12);
   assert.equal(pipEat?.loop, false);
   assert.equal(pipEat?.fps, 20);
   assert.equal(isSheet(pipIdle ?? { count: 145, fps: 16, loop: true, cols: 15 }), true);
   assert.equal(isVideo(pipIdle ?? { count: 145, fps: 16, loop: true }), false);
-  assert.equal(clipSheet("pip", "idle", pipIdle ?? { count: 145, fps: 16, loop: true, cols: 15 }), "/pets/pip/idle.png");
+  assert.equal(clipSheet("pip", "idle", pipIdle ?? { count: 145, fps: 16, loop: true, cols: 15 }), "/pets/pip/idle.webp");
   assert.equal(clipEnded(9062, 16, 145, true), false);
   assert.equal(clipEnded(7249, 20, 145, false), false);
   assert.equal(clipEnded(7250, 20, 145, false), true);

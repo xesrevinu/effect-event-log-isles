@@ -8,6 +8,7 @@ import {
   loadPetsManifest,
   nextRoamClip,
   peekPetSheet,
+  releasePetSheet,
   roamIdleMs,
   SPRITE_VIEW_SCALE,
   type PetClipId,
@@ -114,13 +115,22 @@ export function CritterSprite({
         <PngSequence
           key={`${pet.species}-${shown}-${shown === "idle" ? "loop" : (burstKey ?? 0)}`}
           sheet={clipSheet(pet.species, shown, spec)}
-          cols={spec.cols ?? 15}
-          rows={spec.rows ?? 10}
+          cols={spec.cols ?? 13}
+          rows={spec.rows ?? 12}
           count={spec.count}
           fps={spec.fps}
           loop={spec.loop}
           alt={alt ?? pet.name ?? pet.species}
-          onEnded={shown === "idle" ? undefined : () => setClip("idle")}
+          onEnded={
+            shown === "idle"
+              ? undefined
+              : () => {
+                  // One-shot done: free its decoded bitmap so mobile memory
+                  // stays at idle sheets + at most one action in flight.
+                  releasePetSheet(clipSheet(pet.species, shown, spec));
+                  setClip("idle");
+                }
+          }
         />
       </span>
     </span>

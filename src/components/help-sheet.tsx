@@ -141,7 +141,7 @@ function RayPostcard() {
         rel="noreferrer"
         className="ray-nudge"
       >
-        <img src="/icons/nudge-ray.png" alt="" className="ray-nudge-phone" />
+        <img src="/icons/nudge-ray.webp" alt="" className="ray-nudge-phone" />
         <span className="ray-nudge-label chunk chunk-sm tex-grain">
           {t("help.ray.cta")}
         </span>
@@ -180,7 +180,7 @@ function WritePath() {
       </div>
       <div className="grid grid-cols-2 items-stretch gap-2.5">
         <div className={cn("help-tile flex min-h-[5.5rem] items-center gap-2.5 px-3 py-3", ok && "help-tile-sun")}>
-          <img src="/isles/sun.png" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
+          <img src="/isles/sun.webp" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
           <div className="min-w-0">
             <p className="text-[11px] font-black leading-none text-muted">{t("help.path.isle")}</p>
             <p className="mt-1.5 text-sm font-black leading-snug">{t(ok ? "help.path.isle.ok" : "help.path.isle.no")}</p>
@@ -280,8 +280,8 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="help-sheet absolute inset-0 z-40 flex flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4">
-      <img src="/isles/sun.png" alt="" className="help-deco help-deco-sun" />
-      <img src="/isles/moon.png" alt="" className="help-deco help-deco-moon" />
+      <img src="/isles/sun.webp" alt="" className="help-deco help-deco-sun" />
+      <img src="/isles/moon.webp" alt="" className="help-deco help-deco-moon" />
       <div className="relative z-10 shrink-0">
         <h2 className="help-title">{t("help.title")}</h2>
         <p className="help-lead text-sm font-semibold leading-snug text-muted">

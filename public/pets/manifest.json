@@ -3,78 +3,78 @@
     "idle": {
       "count": 145,
       "fps": 16,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "eat": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "play": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "sleep": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     }
   },
   "nub": {
     "idle": {
       "count": 145,
       "fps": 16,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "eat": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "play": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "sleep": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     }
   },
   "bean": {
     "idle": {
       "count": 145,
       "fps": 16,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "eat": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "play": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     },
     "sleep": {
       "count": 145,
       "fps": 20,
-      "cols": 15,
-      "rows": 10
+      "cols": 13,
+      "rows": 12
     }
   }
 }

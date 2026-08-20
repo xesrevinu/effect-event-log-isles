@@ -1,9 +1,10 @@
 /**
- * Rebuild 145-frame / 15×10 pet sheets from the 6s 24fps videos.
- * Keeps every in-between (does not sample down to the 16f strips).
- * Keys the white studio backdrop, drops black letterbox, defringes
- * the halo, and packs every frame into the same padded window so
- * jumps stay inside the cell.
+ * Rebuild 145-frame / 13×12 pet sheets from the 6s 24fps 960 videos.
+ * Extract at native size (do not scale to 480 first). Pack into 300px
+ * cells so iPhone 3x only downscales. Keys the studio backdrop and
+ * keeps every in-between in the same padded window.
+ * Sheets ship as lossy WebP with alpha (~4-5x smaller than PNG on the wire;
+ * decoded memory is handled at runtime by sheetMemoryScale + release).
  *
  *   node scripts/recut-pets.mjs [sourceDir]
  */
@@ -42,11 +43,11 @@ const CLIPS = [
   { id: "sleep", file: "sleep", fps: 20 },
 ];
 
-const COLS = 15;
-const ROWS = 10;
+const COLS = 13;
+const ROWS = 12;
 const COUNT = 145;
-const CELL = 192;
-const EXTRACT = 480;
+const CELL = 300;
+const EXTRACT = 960;
 
 const MIME = { ".png": "image/png", ".json": "application/json" };
 
@@ -84,8 +85,6 @@ async function extract(video, dest) {
     "-y",
     "-i",
     video,
-    "-vf",
-    `scale=${EXTRACT}:${EXTRACT}:flags=lanczos`,
     join(dest, "%04d.png"),
   ]);
 }
@@ -231,14 +230,18 @@ for (const species of SPECIES) {
         return {
           union,
           window: { sx, sy, sw, sh },
-          dataUrl: sheet.toDataURL("image/png"),
+          dataUrl: sheet.toDataURL("image/webp", 0.92),
         };
       },
       { origin, folder: `${species.id}-${clip.id}`, COUNT, COLS, ROWS, CELL, EXTRACT },
     );
 
-    const dest = join(outDir, species.id, `${clip.id}.png`);
-    writeFileSync(dest, Buffer.from(packed.dataUrl.replace(/^data:image\/png;base64,/, ""), "base64"));
+    if (!packed.dataUrl.startsWith("data:image/webp;base64,")) {
+      throw new Error("browser did not encode webp");
+    }
+    const dest = join(outDir, species.id, `${clip.id}.webp`);
+    writeFileSync(dest, Buffer.from(packed.dataUrl.slice("data:image/webp;base64,".length), "base64"));
+    rmSync(join(outDir, species.id, `${clip.id}.png`), { force: true });
     manifest[species.id][clip.id] = { count: COUNT, fps: clip.fps, cols: COLS, rows: ROWS };
     console.log(`ok  window ${packed.window.sw}×${packed.window.sh}`);
     rmSync(framesDir, { recursive: true, force: true });

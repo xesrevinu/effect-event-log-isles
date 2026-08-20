@@ -23,6 +23,7 @@ const THEME = "#fff3c4";
 const host = import.meta.env.VITE_PUBLIC_HOSTNAME;
 const origin = host ? `https://${host}` : undefined;
 const ogImage = origin ? `${origin}/og.jpg` : undefined;
+const xBanner = origin ? `${origin}/x-banner.jpg` : undefined;
 
 export const Route = createRootRoute({
   loader: () => ({
@@ -73,6 +74,13 @@ export const Route = createRootRoute({
             { property: "og:image:alt", content: "EventLog Isles — two islands, one journal" },
             { name: "twitter:image", content: ogImage },
             { name: "twitter:image:alt", content: "EventLog Isles — two islands, one journal" },
+          ]
+        : []),
+      ...(xBanner
+        ? [
+            { property: "x:game:image", content: xBanner },
+            { property: "x:game:image:width", content: "1200" },
+            { property: "x:game:image:height", content: "264" },
           ]
         : []),
     ],

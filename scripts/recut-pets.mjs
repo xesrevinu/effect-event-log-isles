@@ -15,10 +15,18 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { keyStudioBlack, keyStudioWhite } from "./pet-matte.mjs";
 
 const exec = promisify(execFile);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const sourceDir = process.argv[2] || "/Users/kee/Downloads/final_pets";
+const localSources = [
+  join(root, "grok-final-pets-resources"),
+  "/Users/kee/Downloads/final_pets",
+];
+const sourceDir =
+  process.argv[2] ||
+  localSources.find((dir) => existsSync(join(dir, "videos"))) ||
+  localSources[0];
 const outDir = join(root, "public/pets");
 const workDir = join(tmpdir(), "eventlog-pet-recut");
 
@@ -37,8 +45,8 @@ const CLIPS = [
 const COLS = 15;
 const ROWS = 10;
 const COUNT = 145;
-const CELL = 128;
-const EXTRACT = 320;
+const CELL = 192;
+const EXTRACT = 480;
 
 const MIME = { ".png": "image/png", ".json": "application/json" };
 
@@ -84,6 +92,9 @@ async function extract(video, dest) {
 
 const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
 const page = await browser.newPage();
+await page.addInitScript({
+  content: `globalThis.keyStudioWhite = ${keyStudioWhite.toString()}; globalThis.keyStudioBlack = ${keyStudioBlack.toString()};`,
+});
 const { server, origin } = await startStatic(workDir);
 await page.goto(origin + "/", { waitUntil: "domcontentloaded" });
 const manifest = {};
@@ -128,49 +139,8 @@ for (const species of SPECIES) {
             }
             return false;
           };
-          for (let i = 0; i < d.length; i += 4) {
-            const r = d[i];
-            const g = d[i + 1];
-            const b = d[i + 2];
-            const lum = (r + g + b) / 3;
-            const sat = Math.max(r, g, b) - Math.min(r, g, b);
-            if (lum >= 216 && sat <= 40) {
-              d[i] = 0;
-              d[i + 1] = 0;
-              d[i + 2] = 0;
-              d[i + 3] = 0;
-            }
-          }
-          for (let y = 0; y < EXTRACT; y++) {
-            for (let x = 0; x < EXTRACT; x++) {
-              const o = (y * EXTRACT + x) * 4;
-              if (d[o + 3] < 16) continue;
-              const r = d[o];
-              const g = d[o + 1];
-              const b = d[o + 2];
-              const lum = (r + g + b) / 3;
-              if (lum >= 22) continue;
-              let blob = 0;
-              for (let dy = -2; dy <= 2; dy++) {
-                for (let dx = -2; dx <= 2; dx++) {
-                  const nx = x + dx;
-                  const ny = y + dy;
-                  if (nx < 0 || ny < 0 || nx >= EXTRACT || ny >= EXTRACT) {
-                    blob++;
-                    continue;
-                  }
-                  const no = (ny * EXTRACT + nx) * 4;
-                  if (d[no + 3] < 20 || (d[no] + d[no + 1] + d[no + 2]) / 3 < 26) blob++;
-                }
-              }
-              if (blob >= 14) {
-                d[o] = 0;
-                d[o + 1] = 0;
-                d[o + 2] = 0;
-                d[o + 3] = 0;
-              }
-            }
-          }
+          globalThis.keyStudioWhite(d, EXTRACT, EXTRACT);
+          globalThis.keyStudioBlack(d, EXTRACT, EXTRACT);
           for (let y = 0; y < EXTRACT; y++) {
             for (let x = 0; x < EXTRACT; x++) {
               const o = (y * EXTRACT + x) * 4;

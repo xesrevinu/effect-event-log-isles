@@ -101,21 +101,28 @@ export function CritterSprite({
   }
 
   return (
-    <span
-      className="relative z-50 block size-full origin-bottom"
-      style={{ transform: `scale(${SPRITE_VIEW_SCALE})` }}
-    >
-      <PngSequence
-        key={`${pet.species}-${shown}-${shown === "idle" ? "loop" : (burstKey ?? 0)}`}
-        sheet={clipSheet(pet.species, shown, spec)}
-        cols={spec.cols ?? 15}
-        rows={spec.rows ?? 10}
-        count={spec.count}
-        fps={spec.fps}
-        loop={spec.loop}
-        alt={alt ?? pet.name ?? pet.species}
-        onEnded={shown === "idle" ? undefined : () => setClip("idle")}
-      />
+    <span className="relative z-50 block size-full">
+      <span
+        className="absolute bottom-0"
+        style={{
+          width: `${SPRITE_VIEW_SCALE * 100}%`,
+          height: `${SPRITE_VIEW_SCALE * 100}%`,
+          left: "50%",
+          marginLeft: `${-SPRITE_VIEW_SCALE * 50}%`,
+        }}
+      >
+        <PngSequence
+          key={`${pet.species}-${shown}-${shown === "idle" ? "loop" : (burstKey ?? 0)}`}
+          sheet={clipSheet(pet.species, shown, spec)}
+          cols={spec.cols ?? 15}
+          rows={spec.rows ?? 10}
+          count={spec.count}
+          fps={spec.fps}
+          loop={spec.loop}
+          alt={alt ?? pet.name ?? pet.species}
+          onEnded={shown === "idle" ? undefined : () => setClip("idle")}
+        />
+      </span>
     </span>
   );
 }

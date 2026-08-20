@@ -1,6 +1,14 @@
 import { useLayoutEffect, useRef } from "react";
 import { prefersReducedMotion } from "@/lib/fx";
-import { clipEnded, decodePetSheet, frameIndex, peekPetSheet, sheetDrawRect, sheetSourceRect } from "@/lib/png-sequence";
+import {
+  canvasBackingSize,
+  clipEnded,
+  decodePetSheet,
+  frameIndex,
+  peekPetSheet,
+  sheetDrawRect,
+  sheetSourceRect,
+} from "@/lib/png-sequence";
 
 export function PngSequence({
   sheet,
@@ -40,9 +48,7 @@ export function PngSequence({
     let alive = true;
 
     const fit = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const css = canvas.clientWidth || 56;
-      const size = Math.max(1, Math.round(css * dpr));
+      const size = canvasBackingSize(canvas.clientWidth, window.devicePixelRatio || 1);
       if (canvas.width !== size || canvas.height !== size) {
         canvas.width = size;
         canvas.height = size;
@@ -51,6 +57,7 @@ export function PngSequence({
 
     const paint = (index: number) => {
       if (!source?.naturalWidth) return;
+      last = index;
       fit();
       const cell = sheetSourceRect(index, cols, rows, source.naturalWidth, source.naturalHeight);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -68,10 +75,7 @@ export function PngSequence({
       const elapsed = now - start;
       const hold = prefersReducedMotion() || !playing;
       const index = hold ? 0 : frameIndex(elapsed, fps, count, loop);
-      if (index !== last) {
-        last = index;
-        paint(index);
-      }
+      if (index !== last) paint(index);
       if (!hold && clipEnded(elapsed, fps, count, loop)) {
         ended.current?.();
         return;
@@ -94,9 +98,19 @@ export function PngSequence({
     if (cached) boot(cached);
     else void decodePetSheet(sheet).then(boot, () => undefined);
 
+    const refit = () => {
+      if (last >= 0) paint(last);
+      else fit();
+    };
+    const ro = new ResizeObserver(refit);
+    ro.observe(canvas);
+    window.addEventListener("resize", refit);
+
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", refit);
     };
   }, [sheet, cols, rows, count, fps, loop, playing]);
 

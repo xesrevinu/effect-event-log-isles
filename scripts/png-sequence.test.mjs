@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   allPetSheetUrls,
+  canvasBackingSize,
   clipDir,
   clipEnded,
   defringeRgba,
@@ -104,6 +105,12 @@ test("defringeRgba un-mattes white halo and drops pale edge pixels", () => {
   assert.ok(data[7] < 80, `partial white halo should fade, got ${data[7]}`);
   assert.deepEqual([data[8], data[9], data[10], data[11]], [80, 140, 220, 255]);
   assert.ok(data[15] < 255, `opaque pale rim should lose coverage, got ${data[15]}`);
+});
+
+test("canvasBackingSize follows the visible CSS box and device pixels", () => {
+  assert.equal(canvasBackingSize(96, 3), 288);
+  assert.equal(canvasBackingSize(64, 2), 128);
+  assert.equal(canvasBackingSize(0, 3), 168);
 });
 
 test("sheetDrawRect sits a smaller cell on the canvas floor", () => {

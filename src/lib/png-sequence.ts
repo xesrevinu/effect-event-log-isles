@@ -122,8 +122,15 @@ export function sheetCell(index: number, cols: number) {
 
 /** Sheets already leave jump headroom; only a light inset at draw time. */
 export const SPRITE_DRAW_SCALE = 0.92;
-/** View-only bump so the recut reads a bit larger without recropping. */
+/** CSS box multiplier. Must size the canvas to this box — do not CSS-scale the bitmap. */
 export const SPRITE_VIEW_SCALE = 1.5;
+
+/** Backing store for a square sprite canvas. Uses the visible CSS box, not a later transform. */
+export function canvasBackingSize(cssPx: number, dpr: number) {
+  const css = Number.isFinite(cssPx) && cssPx > 0 ? cssPx : 56;
+  const ratio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+  return Math.max(1, Math.round(css * ratio));
+}
 
 function clamp8(n: number) {
   return n < 0 ? 0 : n > 255 ? 255 : Math.round(n);

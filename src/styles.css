@@ -1,1 +1,52 @@
-PLACEHOLDER
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #fff3c4;
+  --color-hero-sky: #fdde74;
+  --color-surface: #fffdf6;
+  --color-raised: #ffe27a;
+  --color-inset: #fff8e1;
+  --color-fg: #3b2a14;
+  --color-muted: #7a6238;
+  --color-subtle: #a88b52;
+  --color-faint: #e8c96a;
+  --color-accent: #58cc02;
+  --color-accent-fg: #ffffff;
+  --color-accent-deep: #46a302;
+  --color-sky: #1cb0f6;
+  --color-sky-deep: #1899d6;
+  --color-sun: #ffc800;
+  --color-sun-deep: #e5a400;
+  --color-grape: #ce82ff;
+  --color-grape-deep: #a568cc;
+  --color-border: color-mix(in oklab, #3b2a14 10%, transparent);
+  --color-border-strong: color-mix(in oklab, #3b2a14 18%, transparent);
+  --color-ok: #58cc02;
+  --color-ok-dim: #d7f7b5;
+  --color-warn: #ff9600;
+  --color-warn-dim: #ffe0b0;
+  --color-danger: #ff4b4b;
+  --color-danger-dim: #ffd0d0;
+  --color-info: #1cb0f6;
+  --color-info-dim: #c7eeff;
+
+  --font-display: "Fredoka", "ZCOOL KuaiLe", "Nunito", system-ui, sans-serif;
+  --font-sans: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Nunito", ui-rounded, system-ui, sans-serif;
+
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-2xl: 36px;
+
+  --shadow-border: 0 0 0 2px rgba(59, 42, 20, 0.08);
+  --shadow-border-hover: 0 0 0 3px rgba(59, 42, 20, 0.14);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-whoosh: cubic-bezier(0.76, 0.02, 0.18, 1);
+  --ease-silk: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Tall screens (in-game only): cap the playable column and center it vertically. */
+  --studio-max-h: 1380px;
+}

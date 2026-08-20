@@ -87,6 +87,7 @@ const zh = {
   "boot.title": "两座小岛，等你养点什么",
   "boot.body": "一边太阳岛，一边月亮岛。点一只上去，看着它吃、玩、睡。",
   "boot.credit": "由 Ray 和 {grok} Grok 制作",
+  "boot.github": "开源仓库",
   "boot.made":
     "{phone} 在 iPhone 上，用 {grok} Grok Build 捏出第一版(太顶了)。导出后丢进 Cursor，让 {spark} Grok 4.6 抛光(狠狠蹬)，发现效果不错。",
   "boot.art": "{pic} 每个样式、每张图、每段视频，都是 {grok} Grok 一个 token 一个 token 算出来的。",
@@ -251,6 +252,7 @@ const en: Record<keyof typeof zh, string> = {
   "boot.body":
     "Sun Isle on one side, Moon Isle on the other. Put one on, then watch it eat, play, and sleep.",
   "boot.credit": "Made by Ray and {grok} Grok",
+  "boot.github": "Open source",
   "boot.made":
     "{phone} On an iPhone, {grok} Grok Build pinched out v1 (unreal). Exported it, tossed it into Cursor, and let {spark} Grok 4.6 polish it (we mashed the pedals). Turned out pretty good.",
   "boot.art":

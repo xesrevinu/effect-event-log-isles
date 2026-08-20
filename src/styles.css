@@ -375,6 +375,21 @@
     color-mix(in oklab, var(--color-sun) 5%, transparent) 100%
   );
 }
+.boot-github {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--color-fg);
+  background: color-mix(in oklab, #fffdf6 78%, transparent);
+  border: 1.5px solid rgba(59, 42, 20, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.boot-github:active {
+  transform: translateY(1px);
+}
 .boot-note-make {
   border-color: color-mix(in oklab, var(--color-grape-deep) 7%, transparent);
   background-image: linear-gradient(

@@ -1,6 +1,10 @@
 export declare const DEFAULT_APP_NAME: string;
+export declare const APP_DISPLAY_NAME: string;
+export declare const APP_SHORT_NAME: string;
+export declare const APP_DESCRIPTION: string;
 export declare function escapeHtml(value: unknown): string;
 export declare function appNameFromHost(hostHeader: string | null | undefined): string;
+export declare function resolveAppName(hostHeader: string | null | undefined): string;
 export declare function isInstallQuery(url: string | null | undefined): boolean;
 export declare function isDocumentPath(pathname: string | null | undefined): boolean;
 export declare function acceptsHtml(accept: string | null | undefined): boolean;

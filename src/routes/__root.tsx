@@ -4,7 +4,14 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { StudioShell } from "@/components/studio-shell";
 import { I18nProvider } from "@/lib/i18n-context";
 import type { Locale } from "@/lib/i18n";
+import { allPetSheetUrls } from "@/lib/png-sequence";
 import appCss from "../styles.css?url";
+
+const petSheetLinks = allPetSheetUrls().map((href) => ({
+  rel: href.endsWith("/idle.png") ? "preload" : "prefetch",
+  href,
+  as: "image" as const,
+}));
 
 const APP_NAME = "EventLog Isles";
 const APP_DESC =
@@ -74,14 +81,16 @@ export const Route = createRootRoute({
       { rel: "author", href: AUTHOR_X },
       { rel: "me", href: AUTHOR_X },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "stylesheet", href: appCss },
+      ...petSheetLinks,
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&family=ZCOOL+KuaiLe&display=swap",
       },
     ],
   }),

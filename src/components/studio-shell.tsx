@@ -2,9 +2,10 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { CircleHelp, Volume2, VolumeX } from "lucide-react";
 import { useI18n } from "@/lib/i18n-context";
 import { Button } from "@/components/ui";
+import { HelpSheet } from "@/components/help-sheet";
 import { cn } from "@/lib/cn";
 import { playCue, setSfxEnabled, sfxEnabled, startCues, unlockAudio, watchSfx } from "@/lib/fx";
-import type { Locale, MessageKey } from "@/lib/i18n";
+import { preloadPetAssets } from "@/lib/png-sequence";
 
 type NextAction = { label: string; onClick: () => void };
 type LogHud = { count: number; bump: number; onOpen: () => void };
@@ -17,6 +18,33 @@ type Hud = {
 const HudContext = createContext<Hud>({ setNext: () => {}, setLog: () => {}, setSplash: () => {} });
 export function useHud() {
   return useContext(HudContext);
+}
+
+function BrandLeaf() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden className="brand-mark-leaf">
+      <path
+        fill="currentColor"
+        d="M13.8 2.1c-4 .3-7.4 2.4-9 5.8-1.1 2.3-.6 4.5 1 5.6 1.4.9 3.4.5 5.4-1 2.8-2.1 4.5-5.6 4.2-9.1 0-.5-.5-1.1-1.1-1.3h-.5z"
+      />
+      <path
+        d="M5.8 13C7.6 10.6 10 9 12.8 8.1"
+        fill="none"
+        stroke="#3b2a14"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function BrandMark({ outlined = false, padded = false }: { outlined?: boolean; padded?: boolean }) {
+  return (
+    <span className={cn("brand-mark text-base sm:text-[17px]", outlined ? null : "brand-mark-ink", padded && "px-1.5")}>
+      EventLog
+      <BrandLeaf />
+    </span>
+  );
 }
 
 function ChipIcon({
@@ -73,34 +101,6 @@ function LangSwitch() {
   );
 }
 
-function Help({ onClose }: { onClose: () => void }) {
-  const { t } = useI18n();
-  const rows: { k: MessageKey; v: MessageKey }[] = [
-    { k: "help.1.k", v: "help.1.v" },
-    { k: "help.2.k", v: "help.2.v" },
-    { k: "help.3.k", v: "help.3.v" },
-    { k: "help.4.k", v: "help.4.v" },
-    { k: "help.5.k", v: "help.5.v" },
-    { k: "help.6.k", v: "help.6.v" },
-  ];
-  return (
-    <div className="absolute inset-0 z-40 flex flex-col bg-bg p-4">
-      <h2 className="font-display text-2xl font-semibold">{t("help.title")}</h2>
-      <div className="mt-3 grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
-        {rows.map((r) => (
-          <div key={r.k} className="rounded-2xl bg-surface p-4">
-            <p className="font-black text-accent-deep">{t(r.k)}</p>
-            <p className="mt-1 text-sm font-semibold text-muted">{t(r.v)}</p>
-          </div>
-        ))}
-      </div>
-      <Button className="mt-3" onClick={onClose}>
-        {t("help.close")}
-      </Button>
-    </div>
-  );
-}
-
 export function StudioShell({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const [help, setHelp] = useState(false);
@@ -117,6 +117,10 @@ export function StudioShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    void preloadPetAssets();
+  }, []);
+
+  useEffect(() => {
     if (!log?.bump) return;
     setBumpOn(true);
     const id = window.setTimeout(() => setBumpOn(false), 720);
@@ -125,9 +129,31 @@ export function StudioShell({ children }: { children: ReactNode }) {
 
   return (
     <HudContext.Provider value={hud}>
-      <div className="relative flex h-dvh flex-col overflow-hidden overscroll-none bg-bg text-fg">
+      <div
+        className="relative flex h-dvh flex-col overflow-hidden overscroll-none bg-bg text-fg select-none"
+        onDragStart={(event) => {
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            target.closest("img, video, svg, canvas, picture, .tex-ground")
+          ) {
+            event.preventDefault();
+          }
+        }}
+      >
         <div className="tex-ground" aria-hidden />
-        <div className={cn("relative z-10 mx-auto flex min-h-0 w-full flex-1 flex-col", !splash && "max-w-[760px]")}>
+        <div
+          className={cn(
+            "relative z-10 flex min-h-0 w-full flex-1 flex-col",
+            !splash && "items-center justify-center",
+          )}
+        >
+          <div
+            className={cn(
+              "relative flex min-h-0 w-full flex-col",
+              splash ? "flex-1" : "h-[min(100dvh,var(--studio-max-h))] max-w-[760px]",
+            )}
+          >
           <header
             className={cn(
               "z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 sm:px-3",
@@ -148,17 +174,13 @@ export function StudioShell({ children }: { children: ReactNode }) {
                     bumpOn && "anim-log-bump",
                   )}
                 >
-                  <span className="font-display text-sm font-semibold tracking-tight">EventLog</span>
+                  <BrandMark />
                   <span className={cn("grid min-w-5 place-items-center rounded-full bg-sun px-1.5 text-[10px] font-black text-fg", bumpOn && "anim-pip")}>
                     {log.count}
                   </span>
                 </button>
-              ) : splash ? (
-                <span className="px-1.5 font-display text-sm font-semibold tracking-tight text-fg">
-                  EventLog
-                </span>
               ) : (
-                <p className="px-1.5 font-display text-sm font-semibold tracking-tight">EventLog</p>
+                <BrandMark outlined={splash} padded />
               )}
             </div>
             <div className="justify-self-center">
@@ -186,11 +208,12 @@ export function StudioShell({ children }: { children: ReactNode }) {
               <LangSwitch />
             </div>
           </header>
-          <main className={cn("min-h-0 flex-1", splash ? "px-0 pb-[max(0.35rem,env(safe-area-inset-bottom))]" : "px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3")}>
+          <main className={cn("min-h-0 flex-1 overflow-visible", splash ? "px-0 pb-[max(0.35rem,env(safe-area-inset-bottom))]" : "px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3")}>
             {children}
           </main>
+          </div>
         </div>
-        {help ? <Help onClose={() => setHelp(false)} /> : null}
+        {help ? <HelpSheet onClose={() => setHelp(false)} /> : null}
       </div>
     </HudContext.Provider>
   );

@@ -59,6 +59,7 @@ export function UserButton() {
         <img
           src={user.profileImageUrl}
           alt=""
+          draggable={false}
           className="h-8 w-8 rounded-full object-cover"
         />
       ) : (

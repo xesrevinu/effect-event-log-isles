@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, InputHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 export function Button({
@@ -7,7 +7,7 @@ export function Button({
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ghost" | "outline" | "danger" | "quiet" | "sky" | "sun" | "grape";
+  variant?: "primary" | "quiet" | "sky" | "sun";
   size?: "sm" | "md" | "lg";
 }) {
   return (
@@ -23,66 +23,7 @@ export function Button({
         variant === "primary" && "tex-grain border-accent-deep bg-accent text-accent-fg",
         variant === "sky" && "tex-grain border-sky-deep bg-sky text-accent-fg",
         variant === "sun" && "tex-grain border-sun-deep bg-sun text-fg",
-        variant === "grape" && "tex-grain border-grape-deep bg-grape text-accent-fg",
-        variant === "ghost" && "border-transparent bg-transparent text-fg",
-        variant === "outline" && "border-faint bg-surface text-fg",
-        variant === "danger" && "tex-grain border-[#d93838] bg-danger text-accent-fg",
         variant === "quiet" && "border-faint bg-inset text-fg",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={cn(
-        "h-12 w-full rounded-2xl bg-surface px-3 text-base font-bold text-fg",
-        "shadow-[var(--shadow-border)] placeholder:font-semibold placeholder:text-subtle",
-        "focus:outline-none focus:shadow-[var(--shadow-border-hover)]",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export function Badge({
-  tone = "muted",
-  className,
-  ...props
-}: HTMLAttributes<HTMLSpanElement> & {
-  tone?: "muted" | "ok" | "warn" | "danger" | "info" | "accent";
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide",
-        tone === "muted" && "bg-inset text-muted",
-        tone === "ok" && "bg-ok-dim text-accent-deep",
-        tone === "warn" && "bg-warn-dim text-warn",
-        tone === "danger" && "bg-danger-dim text-danger",
-        tone === "info" && "bg-info-dim text-sky-deep",
-        tone === "accent" && "bg-accent text-accent-fg",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export function Panel({
-  className,
-  padded = true,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & { padded?: boolean }) {
-  return (
-    <div
-      className={cn(
-        "rounded-3xl bg-surface shadow-[var(--shadow-border)]",
-        padded && "p-4",
         className,
       )}
       {...props}

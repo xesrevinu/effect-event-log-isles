@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Pencil, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -8,6 +8,7 @@ import {
   makeReplica,
   MAX_BELLY,
   MAX_ENERGY,
+  MAX_HERD,
   MAX_MOOD,
   newCritterId,
   rebuildProjection,
@@ -22,24 +23,89 @@ import {
   type ReplicaId,
   type Species,
 } from "@/lib/critter-sim";
-import { checkMission, emptyFlags, spotlightFor, type Flags, type MissionId, type Spotlight } from "@/lib/missions";
-import { armAudio, sfx, wait } from "@/lib/fx";
+import {
+  checkMission,
+  emptyFlags,
+  spotlightFor,
+  type Flags,
+  type MissionId,
+  type Spotlight,
+} from "@/lib/missions";
+import { armAudio, playCue, prefersReducedMotion, sfx, wait } from "@/lib/fx";
 import { useI18n } from "@/lib/i18n-context";
 import type { MessageKey } from "@/lib/i18n";
+import { BootCurtain, type BootCurtainPhase } from "@/components/boot-curtain";
+import { CritterSprite, usePetClip } from "@/components/critter-sprite";
+import { HeroMedia } from "@/components/hero-media";
+import { IsleGrain } from "@/components/isle-grain";
 import { Button } from "@/components/ui";
 import { useHud } from "@/components/studio-shell";
+
+function stackContentHeight(stack: HTMLElement) {
+  const styles = getComputedStyle(stack);
+  return Math.max(
+    0,
+    Math.round(
+      stack.clientHeight -
+        (parseFloat(styles.paddingTop) || 0) -
+        (parseFloat(styles.paddingBottom) || 0),
+    ),
+  );
+}
+
+function GuideHit({
+  on,
+  label,
+  className,
+  children,
+}: {
+  on: boolean;
+  label?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("relative", on && "z-50", className)}>
+      {on && label ? (
+        <span className="guide-tip" aria-hidden>
+          {label}
+        </span>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+function hugIsleHeight(lane: HTMLElement) {
+  const board = lane.querySelector<HTMLElement>(".isle-board");
+  if (!board) return Math.round(lane.getBoundingClientRect().height);
+  const header = board.querySelector<HTMLElement>("[data-isle-bar]");
+  const slot = board.querySelector<HTMLElement>(".isle-slot");
+  const boardCs = getComputedStyle(board);
+  const borderY =
+    (parseFloat(boardCs.borderTopWidth) || 0) + (parseFloat(boardCs.borderBottomWidth) || 0);
+  const headerH = header?.getBoundingClientRect().height ?? 0;
+  if (!slot) return Math.round(headerH + borderY);
+  const slotCs = getComputedStyle(slot);
+  const slotPad =
+    (parseFloat(slotCs.paddingTop) || 0) +
+    (parseFloat(slotCs.paddingBottom) || 0) +
+    (parseFloat(slotCs.borderTopWidth) || 0) +
+    (parseFloat(slotCs.borderBottomWidth) || 0);
+  const slotMargin = (parseFloat(slotCs.marginTop) || 0) + (parseFloat(slotCs.marginBottom) || 0);
+  const gap = parseFloat(slotCs.rowGap || slotCs.gap) || 0;
+  const kids = Array.from(slot.children) as HTMLElement[];
+  const inner =
+    kids.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0) +
+    Math.max(0, kids.length - 1) * gap;
+  return Math.round(headerH + slotPad + inner + slotMargin + borderY);
+}
 
 type World = { sun: Replica; moon: Replica };
 
 function fresh(): World {
   return { sun: makeReplica("sun"), moon: makeReplica("moon") };
 }
-
-const FILL: Record<Species, string> = {
-  pip: "#ffc800",
-  nub: "#1cb0f6",
-  bean: "#58cc02",
-};
 
 const STEPS = ["client()", "EventGroup", "handler", "journal"] as const;
 
@@ -55,78 +121,13 @@ type Pending = {
   event: EventTag;
 };
 
-function Face({
-  pet,
-  size = 64,
-}: {
-  pet: Pick<Critter, "species" | "stage" | "belly" | "mood" | "energy">;
-  size?: number;
-}) {
-  const stuffed = pet.belly >= 3;
-  const sleepy = pet.energy <= 0;
-  const play = pet.mood >= 3 && pet.energy > 0 && !sleepy;
-  const sad = pet.mood <= 0 && !play;
-  const h = pet.stage === "egg" ? size * 0.78 : pet.stage === "kid" ? size * 0.92 : size;
-  const w = pet.species === "bean" ? size * 0.74 : pet.species === "nub" ? size * 0.9 : size;
-  const cx = size / 2;
-  const cy = size / 2;
-  const eyeY = sleepy || pet.stage === "egg" ? h * 0.46 : h * 0.4;
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} aria-hidden className="size-full">
-      <ellipse cx={cx} cy={cy + 3} rx={w * 0.44} ry={h * 0.42} fill="rgba(59,42,20,0.12)" />
-      <ellipse cx={cx} cy={cy} rx={w * 0.44} ry={h * 0.44} fill={FILL[pet.species]} stroke="#3b2a14" strokeWidth="3" />
-      <ellipse cx={cx - w * 0.12} cy={cy - h * 0.14} rx={w * 0.16} ry={h * 0.1} fill="rgba(255,255,255,0.35)" />
-      {pet.species === "nub" ? (
-        <>
-          <ellipse cx={cx - w * 0.28} cy={cy - h * 0.38} rx={size * 0.09} ry={size * 0.12} fill={FILL.nub} stroke="#3b2a14" strokeWidth="2.5" />
-          <ellipse cx={cx + w * 0.28} cy={cy - h * 0.38} rx={size * 0.09} ry={size * 0.12} fill={FILL.nub} stroke="#3b2a14" strokeWidth="2.5" />
-        </>
-      ) : null}
-      {pet.species === "bean" ? (
-        <path d={`M ${cx} ${cy - h * 0.46} q ${size * 0.08} ${-size * 0.16} ${size * 0.18} ${-size * 0.04}`} fill="none" stroke="#3b2a14" strokeWidth="3" strokeLinecap="round" />
-      ) : null}
-      {pet.stage === "egg" ? (
-        <path d={`M ${size * 0.32} ${h * 0.4} L ${size * 0.4} ${h * 0.32} L ${size * 0.48} ${h * 0.42} L ${size * 0.58} ${h * 0.3} L ${size * 0.68} ${h * 0.4}`} fill="none" stroke="#3b2a14" strokeWidth="3" />
-      ) : sleepy ? (
-        <>
-          <path d={`M ${cx - size * 0.16} ${eyeY} q ${size * 0.06} ${size * 0.05} ${size * 0.12} 0`} fill="none" stroke="#3b2a14" strokeWidth="3" strokeLinecap="round" />
-          <path d={`M ${cx + size * 0.04} ${eyeY} q ${size * 0.06} ${size * 0.05} ${size * 0.12} 0`} fill="none" stroke="#3b2a14" strokeWidth="3" strokeLinecap="round" />
-        </>
-      ) : play ? (
-        <>
-          <path d={`M ${cx - size * 0.2} ${eyeY} l ${size * 0.06} ${-size * 0.05} l ${size * 0.06} ${size * 0.05} l ${size * 0.06} ${-size * 0.05}`} fill="none" stroke="#3b2a14" strokeWidth="2.6" strokeLinejoin="round" />
-          <path d={`M ${cx + size * 0.02} ${eyeY} l ${size * 0.06} ${-size * 0.05} l ${size * 0.06} ${size * 0.05} l ${size * 0.06} ${-size * 0.05}`} fill="none" stroke="#3b2a14" strokeWidth="2.6" strokeLinejoin="round" />
-        </>
-      ) : (
-        <>
-          <circle cx={cx - size * 0.12} cy={eyeY} r={sad ? 2.1 : 3.3} fill="#3b2a14" />
-          <circle cx={cx + size * 0.12} cy={eyeY} r={sad ? 2.1 : 3.3} fill="#3b2a14" />
-          <circle cx={cx - size * 0.1} cy={eyeY - 1} r={1} fill="#fff" />
-          <circle cx={cx + size * 0.14} cy={eyeY - 1} r={1} fill="#fff" />
-        </>
-      )}
-      <ellipse cx={cx - w * 0.22} cy={h * 0.58} rx={size * 0.07} ry={size * 0.045} fill={stuffed || play ? "#ff8aa0" : "transparent"} />
-      <ellipse cx={cx + w * 0.22} cy={h * 0.58} rx={size * 0.07} ry={size * 0.045} fill={stuffed || play ? "#ff8aa0" : "transparent"} />
-      {stuffed ? (
-        <ellipse cx={cx} cy={h * 0.68} rx={size * 0.1} ry={size * 0.07} fill="#3b2a14" />
-      ) : sad ? (
-        <path d={`M ${cx - size * 0.1} ${h * 0.7} q ${size * 0.1} ${-size * 0.08} ${size * 0.2} 0`} fill="none" stroke="#3b2a14" strokeWidth="3" strokeLinecap="round" />
-      ) : (
-        <path d={`M ${cx - size * 0.1} ${h * 0.64} q ${size * 0.1} ${size * 0.12} ${size * 0.2} 0`} fill="none" stroke="#3b2a14" strokeWidth="3" strokeLinecap="round" />
-      )}
-    </svg>
-  );
-}
-
 function StatPips({
-  icon,
   label,
   value,
   max,
   pulse,
   kind,
 }: {
-  icon: string;
   label: string;
   value: number;
   max: number;
@@ -137,15 +138,14 @@ function StatPips({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl px-1 py-1",
+        "stat-inlay flex min-w-0 flex-1 items-center justify-center rounded-full px-1.5 py-1",
         kind === "belly" && "bg-warn-dim",
-        kind === "mood" && "bg-[#f3e2ff]",
-        kind === "energy" && "bg-info-dim",
+        kind === "mood" && "bg-info-dim",
+        kind === "energy" && "bg-[#f3e2ff]",
       )}
       aria-label={`${label} ${n}/${max}`}
     >
-      <span className={cn("shrink-0 text-[14px] leading-none", pulse && "anim-pip")}>{icon}</span>
-      <span className="flex items-end gap-0.5">
+      <span className="flex items-end gap-1">
         {Array.from({ length: max }, (_, i) => {
           const on = i < n;
           if (kind === "belly") {
@@ -153,8 +153,10 @@ function StatPips({
               <span
                 key={i}
                 className={cn(
-                  "size-2.5 rounded-full border-2",
-                  on ? "border-[#c77812] bg-[#ff9600] shadow-[0_1px_0_#c77812]" : "border-[#e8c96a]/80 bg-white/40",
+                  "size-3 rounded-full border-2",
+                  on
+                    ? "border-[#c77812] bg-[#ff9600] shadow-[0_1px_0_#c77812]"
+                    : "border-[#e8c96a]/80 bg-white/40",
                   pulse && on && "anim-pip",
                 )}
                 style={{ animationDelay: `${i * 70}ms` }}
@@ -166,8 +168,8 @@ function StatPips({
               <span
                 key={i}
                 className={cn(
-                  "mb-px size-2 rotate-45 rounded-[2px]",
-                  on ? "bg-grape shadow-[0_1px_0_#a568cc]" : "bg-white/45",
+                  "mb-px size-2.5 rotate-45 rounded-[3px]",
+                  on ? "bg-sky shadow-[0_1px_0_#1899d6]" : "bg-white/45",
                   pulse && on && "anim-pip",
                 )}
                 style={{ animationDelay: `${i * 70}ms` }}
@@ -178,9 +180,9 @@ function StatPips({
             <span
               key={i}
               className={cn(
-                "w-[5px] rounded-[2px]",
-                i === 0 ? "h-1.5" : i === 1 ? "h-2.5" : "h-3.5",
-                on ? "bg-sky shadow-[0_1px_0_#1899d6]" : "bg-white/45",
+                "w-1.5 rounded-[3px]",
+                i === 0 ? "h-2" : i === 1 ? "h-3" : "h-4",
+                on ? "bg-grape shadow-[0_1px_0_#a568cc]" : "bg-white/45",
                 pulse && on && "anim-pip",
               )}
               style={{ animationDelay: `${i * 70}ms` }}
@@ -236,32 +238,33 @@ function CritterCard({
   const mine = pulse?.petId === pet.id && pulse.ok;
   const waiting = pending?.petId === pet.id;
   const fx = mine ? pulse?.event : undefined;
+  const sequenced = usePetClip(pet.species, "idle");
   const actions = [
     {
       event: "Fed" as const,
       spot: "feed" as const,
-      mark: "🍪",
+      icon: "/icons/feed.png",
       label: "act.feed" as const,
       vibe: "act-feed rounded-[1.35rem] border-[#c77812] bg-[linear-gradient(180deg,#ffc44d_0%,#ff9600_72%)] text-fg",
     },
     {
       event: "Played" as const,
       spot: "play" as const,
-      mark: "✨",
+      icon: "/icons/play.png",
       label: "act.play" as const,
       vibe: "act-play rounded-2xl border-sky-deep bg-[linear-gradient(165deg,#7ee0ff_0%,#1cb0f6_70%)] text-accent-fg",
     },
     {
       event: "Slept" as const,
       spot: null,
-      mark: "😴",
+      icon: "/icons/sleep.png",
       label: "act.sleep" as const,
       vibe: "act-sleep rounded-full border-[#7a4bb5] bg-[linear-gradient(180deg,#e4b8ff_0%,#ce82ff_78%)] text-accent-fg",
     },
     {
       event: "Released" as const,
       spot: null,
-      mark: "✕",
+      icon: "/icons/release.png",
       label: "act.release" as const,
       vibe: "act-release rounded-lg border-[#b42323] bg-[linear-gradient(180deg,#ff8585_0%,#e23b3b_80%)] text-accent-fg",
     },
@@ -270,81 +273,135 @@ function CritterCard({
   return (
     <div
       className={cn(
-        "relative flex shrink-0 flex-col rounded-[18px] bg-surface px-2.5 py-2",
+        "pet-paper relative z-10 flex shrink-0 flex-col overflow-visible rounded-[16px] px-2 pt-2 pb-1.5",
         waiting && "ring-2 ring-inset ring-dashed ring-sky",
         mine && "anim-flash",
         pulse?.petId === pet.id && !pulse.ok && "anim-shake",
       )}
     >
-      {fx === "Slept" ? <span className="anim-zzz pointer-events-none absolute top-0 right-6 text-[11px] font-black text-grape">z</span> : null}
-      {fx === "Played" ? <span className="pointer-events-none absolute top-0.5 right-8 text-[11px]">✨</span> : null}
-      {fx === "Fed" ? <span className="pointer-events-none absolute top-0.5 right-8 text-[12px]">🍪</span> : null}
-      <div className="flex items-center gap-2">
-        <div className={cn("size-14 shrink-0", mine && (fx === "Played" ? "anim-wiggle" : "anim-pop"))}>
-          <Face pet={pet} size={64} />
-        </div>
-        <div className="min-w-0 flex-1">
-          {editing ? (
-            <input
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={() => {
-                setEditing(false);
-                if (draft.trim() && draft.trim() !== pet.name) onAct("Named", pet, draft.trim());
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-              data-guide={spot === "name" ? t("guide.rename") : undefined}
-              className={cn("h-8 w-full rounded-lg bg-inset px-2 text-base font-black text-fg ring-2 ring-grape", spot === "name" && "guide-spot")}
+      <div className="flex items-center gap-1.5">
+        <div className="relative z-50 h-14 w-16 shrink-0 overflow-visible">
+          <div
+            className={cn(
+              "absolute inset-x-0 bottom-0 size-16",
+              !sequenced && mine && (fx === "Played" ? "anim-wiggle" : "anim-pop"),
+            )}
+          >
+            <CritterSprite
+              pet={pet}
+              burst={fx}
+              burstKey={mine ? pulse?.nonce : undefined}
+              alt={pet.name}
             />
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(pet.name);
-                setEditing(true);
-              }}
-              data-guide={spot === "name" ? t("guide.rename") : undefined}
-              className={cn(
-                "flex max-w-full items-center gap-1 rounded-lg bg-inset px-1.5 py-0.5 text-left",
-                spot === "name" && "guide-spot",
-              )}
-            >
-              <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
-              <Pencil className="size-3.5 shrink-0 text-muted" aria-hidden />
-            </button>
-          )}
-          <div className="mt-1 flex min-w-0 gap-1">
-            <StatPips icon="🍪" label={t("stat.belly")} value={pet.belly} max={MAX_BELLY} pulse={mine && fx === "Fed"} kind="belly" />
-            <StatPips icon="✨" label={t("stat.mood")} value={pet.mood} max={MAX_MOOD} pulse={mine && fx === "Played"} kind="mood" />
-            <StatPips icon="😴" label={t("stat.energy")} value={pet.energy} max={MAX_ENERGY} pulse={mine && fx === "Slept"} kind="energy" />
+          </div>
+          {fx === "Fed" || fx === "Played" || fx === "Slept" ? (
+            <img
+              key={pulse?.nonce}
+              src={
+                fx === "Fed"
+                  ? "/icons/feed.png"
+                  : fx === "Played"
+                    ? "/icons/play.png"
+                    : "/icons/sleep.png"
+              }
+              alt=""
+              className="act-burst pointer-events-none absolute -top-3 -right-2 z-20 size-8 object-contain"
+            />
+          ) : null}
+        </div>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <GuideHit
+            on={spot === "name"}
+            label={t("guide.rename")}
+            className="min-w-0 shrink-0 max-w-[38%]"
+          >
+            {editing ? (
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => {
+                  setEditing(false);
+                  if (draft.trim() && draft.trim() !== pet.name) onAct("Named", pet, draft.trim());
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                className={cn(
+                  "h-8 w-full rounded-lg bg-inset px-2 text-base font-black text-fg ring-2 ring-grape",
+                  spot === "name" && "guide-spot",
+                )}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(pet.name);
+                  setEditing(true);
+                }}
+                className={cn(
+                  "flex max-w-full items-center gap-1 rounded-lg bg-inset px-1.5 py-0.5 text-left shadow-[inset_0_1px_0_rgba(59,42,20,0.07)]",
+                  spot === "name" && "guide-spot",
+                )}
+              >
+                <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
+                <Pencil className="size-3.5 shrink-0 text-muted" aria-hidden />
+              </button>
+            )}
+          </GuideHit>
+          <div className="flex min-w-0 flex-1 gap-1">
+            <StatPips
+              label={t("stat.belly")}
+              value={pet.belly}
+              max={MAX_BELLY}
+              pulse={mine && fx === "Fed"}
+              kind="belly"
+            />
+            <StatPips
+              label={t("stat.mood")}
+              value={pet.mood}
+              max={MAX_MOOD}
+              pulse={mine && fx === "Played"}
+              kind="mood"
+            />
+            <StatPips
+              label={t("stat.energy")}
+              value={pet.energy}
+              max={MAX_ENERGY}
+              pulse={mine && fx === "Slept"}
+              kind="energy"
+            />
           </div>
         </div>
       </div>
-      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
-        {actions.map((action) => (
-          <button
-            key={action.event}
-            type="button"
-            disabled={busy}
-            onClick={() => onAct(action.event, pet)}
-            aria-label={t(action.label)}
-            className={cn(
-              "chunk chunk-sm relative flex h-9 items-center justify-center px-0",
-              action.vibe,
-              "disabled:cursor-not-allowed disabled:opacity-40",
-              action.spot && spot === action.spot && "guide-spot",
-              waiting && pending?.event === action.event && "brightness-110",
-              mine && fx === action.event && "anim-pop",
-            )}
-            data-guide={action.spot && spot === action.spot ? t("guide.tap") : undefined}
-          >
-            {action.event === "Slept" ? <span className="act-z" aria-hidden>z</span> : null}
-            <span className="act-mark text-[22px] leading-none">{action.mark}</span>
-          </button>
-        ))}
+      <div className="mt-1 grid grid-cols-4 gap-1.5">
+        {actions.map((action) => {
+          const guided = Boolean(action.spot && spot === action.spot);
+          return (
+            <GuideHit key={action.event} on={guided} label={t("guide.tap")} className="min-w-0">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onAct(action.event, pet)}
+                aria-label={t(action.label)}
+                className={cn(
+                  "chunk chunk-sm relative flex h-7 w-full items-center justify-center overflow-visible px-0",
+                  action.vibe,
+                  "disabled:cursor-not-allowed disabled:opacity-40",
+                  guided && "guide-spot",
+                  waiting && pending?.event === action.event && "brightness-110",
+                  mine && fx === action.event && "anim-pop",
+                )}
+              >
+                <img
+                  src={action.icon}
+                  alt=""
+                  className="act-mark pointer-events-none relative z-[2] size-8 object-contain"
+                />
+              </button>
+            </GuideHit>
+          );
+        })}
       </div>
     </div>
   );
@@ -354,6 +411,7 @@ function Isle({
   replica,
   locked,
   selected,
+  stretch,
   lit,
   spot,
   busy,
@@ -369,6 +427,7 @@ function Isle({
   replica: Replica;
   locked: boolean;
   selected: boolean;
+  stretch: boolean;
   lit: boolean;
   spot: Spotlight;
   busy: boolean;
@@ -384,81 +443,167 @@ function Isle({
   const { t } = useI18n();
   const pets = herd(replica);
   const sun = replica.id === "sun";
+  const packed = pets.length >= MAX_HERD;
   return (
     <section
       onClick={onPick}
       className={cn(
-        "flex h-full w-full min-h-0 min-w-0 flex-col rounded-[20px] transition-colors duration-200",
-        sun ? "bg-sun/40" : "bg-sky/25",
-        selected && (sun ? "bg-sun ring-[3px] ring-inset ring-[#b8860b]" : "bg-sky/60 ring-[3px] ring-inset ring-sky-deep"),
-        !selected && "opacity-75",
+        "isle-board relative flex w-full min-w-0 flex-col overflow-visible rounded-[20px] transition-[background,box-shadow] duration-200",
+        stretch ? "h-full min-h-0 flex-1" : "h-auto",
+        sun ? "isle-board-sun" : "isle-board-moon",
+        selected &&
+          (sun
+            ? "isle-board-on ring-[3px] ring-inset ring-[#b8860b]"
+            : "isle-board-on ring-[3px] ring-inset ring-sky-deep"),
         lit && "anim-flash",
       )}
     >
-      <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-1.5">
+      <IsleGrain isle={sun ? "sun" : "moon"} />
+      <div
+        className="relative z-10 flex items-center justify-between gap-2 px-3 pt-4 pb-2"
+        data-isle-bar
+      >
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onOpenLog(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenLog();
+          }}
           className={cn(
-            "flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors duration-200",
+            "relative isolate flex min-h-8 min-w-0 items-center gap-1 overflow-visible rounded-full py-1 pr-2.5 pl-[calc(2.7rem+8px)] transition-colors duration-200",
             selected
-              ? cn("anim-isle-pick shadow-[0_2px_0_rgba(59,42,20,0.14)]", sun ? "bg-raised" : "bg-sky text-accent-fg")
-              : "bg-surface/90",
+              ? cn(
+                  "anim-isle-pick border-b-[3px] shadow-[0_2px_0_rgba(59,42,20,0.14)]",
+                  sun
+                    ? "border-[#b8860b]/35 bg-raised"
+                    : "border-sky-deep/50 bg-sky text-accent-fg",
+                )
+              : "border-b-2 border-[#3b2a14]/10 bg-surface/90",
           )}
           aria-label={t("isle.vault")}
         >
-          <span className="min-w-0 truncate text-sm font-black">{t(sun ? "isle.sun" : "isle.moon")}</span>
-          <span className={cn("shrink-0 text-[11px] font-black", selected && !sun ? "text-accent-fg/80" : "text-muted")}>#{replica.journal.length}</span>
+          <img
+            src={sun ? "/isles/sun.png" : "/isles/moon.png"}
+            alt=""
+            width={56}
+            height={56}
+            draggable={false}
+            className="pointer-events-none absolute -left-1.5 top-1/2 z-10 size-14 -translate-y-[64%] object-contain drop-shadow-[0_5px_7px_rgba(59,42,20,0.32)]"
+          />
+          <span className="min-w-0 truncate text-sm font-black">
+            {t(sun ? "isle.sun" : "isle.moon")}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 text-[11px] font-black",
+              selected && !sun ? "text-accent-fg/80" : "text-muted",
+            )}
+          >
+            #{replica.journal.length}
+          </span>
         </button>
         {locked ? null : (
-          <div className="flex shrink-0 gap-2">
-            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length === 0} onClick={(e) => { e.stopPropagation(); onStorm(); }} className={cn("h-7 px-2", spot === "storm" && "guide-spot")} data-guide={spot === "storm" ? t("guide.tap") : undefined} aria-label={t("isle.storm")}>
-              <Wind className="size-3.5" />
-              <span className="text-[10px] font-black">{t("isle.storm")}</span>
-            </Button>
-            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length === 0} onClick={(e) => { e.stopPropagation(); onReplay(); }} className={cn("h-7 px-2", spot === "replay" && "guide-spot")} data-guide={spot === "replay" ? t("guide.tap") : undefined} aria-label={t("isle.replay")}>
-              <Undo2 className="size-3.5" />
-              <span className="text-[10px] font-black">{t("isle.replay")}</span>
-            </Button>
-            <Button size="sm" variant="quiet" disabled={busy || replica.journal.length < 2} onClick={(e) => { e.stopPropagation(); onFold(); }} className={cn("h-7 px-2", spot === "fold" && "guide-spot")} data-guide={spot === "fold" ? t("guide.tap") : undefined} aria-label={t("isle.fold")}>
-              <span className="text-[10px] font-black">{t("isle.fold")}</span>
-            </Button>
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            {packed ? (
+              <span
+                className={cn(
+                  "text-[11px] font-extrabold",
+                  selected && !sun ? "text-accent-fg/80" : "text-muted",
+                )}
+              >
+                {t("isle.full")}
+              </span>
+            ) : null}
+            <GuideHit on={spot === "storm"} label={t("guide.tap")} className="shrink-0">
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={busy || replica.journal.length === 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStorm();
+                }}
+                className={cn("h-7 px-2", spot === "storm" && "guide-spot")}
+                aria-label={t("isle.storm")}
+              >
+                <Wind className="size-3.5" />
+                <span className="text-[10px] font-black">{t("isle.storm")}</span>
+              </Button>
+            </GuideHit>
+            <GuideHit on={spot === "replay"} label={t("guide.tap")} className="shrink-0">
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={busy || replica.journal.length === 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReplay();
+                }}
+                className={cn("h-7 px-2", spot === "replay" && "guide-spot")}
+                aria-label={t("isle.replay")}
+              >
+                <Undo2 className="size-3.5" />
+                <span className="text-[10px] font-black">{t("isle.replay")}</span>
+              </Button>
+            </GuideHit>
+            <GuideHit on={spot === "fold"} label={t("guide.tap")} className="shrink-0">
+              <Button
+                size="sm"
+                variant="quiet"
+                disabled={busy || replica.journal.length < 2}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFold();
+                }}
+                className={cn("h-7 px-2", spot === "fold" && "guide-spot")}
+                aria-label={t("isle.fold")}
+              >
+                <span className="text-[10px] font-black">{t("isle.fold")}</span>
+              </Button>
+            </GuideHit>
           </div>
         )}
       </div>
-      {locked ? (
-        <div className="mx-1.5 mb-1.5 flex flex-1 items-center justify-center rounded-[14px] bg-surface/80">
+      <div
+        className={cn(
+          "isle-slot relative z-10 mx-1.5 mb-1.5 flex flex-col rounded-[14px]",
+          locked || pets.length === 0
+            ? cn("items-center justify-center", stretch && "min-h-24 flex-1")
+            : cn(
+                "no-scrollbar gap-2 px-2 py-2",
+                stretch
+                  ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+                  : "overflow-visible",
+              ),
+        )}
+      >
+        {locked ? (
           <p className="text-sm font-extrabold text-subtle">{t("isle.locked")}</p>
-        </div>
-      ) : pets.length === 0 ? (
-        <div className="mx-1.5 mb-1.5 flex flex-1 items-center justify-center rounded-[14px] bg-surface/80">
+        ) : pets.length === 0 ? (
           <p className="text-sm font-extrabold text-subtle">{t("isle.empty")}</p>
-        </div>
-      ) : (
-        <div className="mx-1 mb-1.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain p-1">
-          {pets.map((pet, i) => (
-            <CritterCard key={pet.id} pet={pet} spot={i === 0 ? spot : null} busy={busy} pulse={pulse} pending={pending} onAct={onAct} />
-          ))}
-        </div>
-      )}
+        ) : (
+          pets.map((pet, i) => (
+            <CritterCard
+              key={pet.id}
+              pet={pet}
+              spot={i === 0 ? spot : null}
+              busy={busy}
+              pulse={pulse}
+              pending={pending}
+              onAct={onAct}
+            />
+          ))
+        )}
+      </div>
     </section>
   );
 }
 
-function TimelineBar({
-  forge,
-  failing,
-}: {
-  forge: number;
-  failing: boolean;
-}) {
+function TimelineBar({ forge, failing }: { forge: number; failing: boolean }) {
   const { t } = useI18n();
   const running = forge >= 0;
   return (
-    <ol
-      className="flex shrink-0 items-center gap-0 px-0.5 py-1.5"
-      aria-label="EventLog"
-    >
+    <ol className="flex shrink-0 items-center gap-0 px-0.5 py-1.5" aria-label="EventLog">
       {STEPS.map((label, i) => {
         const on = forge === i;
         const done = forge > i && !(failing && i >= 2);
@@ -500,13 +645,15 @@ function TimelineBar({
   );
 }
 
-function StepToast({
+function ForgeToast({
   show,
   failing,
+  forge,
   text,
 }: {
   show: boolean;
   failing: boolean;
+  forge: number;
   text: string;
 }) {
   const [paint, setPaint] = useState(show);
@@ -529,13 +676,24 @@ function StepToast({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-4 z-20",
+        "pointer-events-none absolute inset-x-2 bottom-2 z-30 sm:inset-x-3",
         leaving ? "anim-toast-out" : "anim-toast-in",
       )}
-      style={{ bottom: "22%" }}
     >
-      <div className={cn("rounded-2xl px-4 py-3 shadow-[0_10px_28px_rgba(59,42,20,0.16)]", failing ? "bg-danger-dim" : "bg-surface")}>
-        <p key={text} className={cn("anim-copy text-[15px] font-black leading-snug", failing ? "text-danger" : "text-fg")}>
+      <div
+        className={cn(
+          "rounded-[22px] px-2.5 pt-1.5 pb-2.5 shadow-[0_10px_28px_rgba(59,42,20,0.16)]",
+          failing ? "bg-danger-dim" : "bg-surface/95",
+        )}
+      >
+        <TimelineBar forge={forge} failing={failing} />
+        <p
+          key={text}
+          className={cn(
+            "anim-copy px-1.5 pt-0.5 text-[14px] font-black leading-snug sm:text-[15px]",
+            failing ? "text-danger" : "text-fg",
+          )}
+        >
           {text}
         </p>
       </div>
@@ -567,23 +725,40 @@ function EventsDialog({
   }, [len, attempt?.entryId]);
 
   return (
-    <div className="absolute inset-0 z-30">
-      <button type="button" className="absolute inset-0 bg-[rgba(59,42,20,0.46)]" onClick={onClose} aria-label="close events" />
+    <div className="pointer-events-auto fixed inset-0 z-[80]">
+      <button
+        type="button"
+        className="absolute inset-0 bg-[rgba(59,42,20,0.46)]"
+        onClick={onClose}
+        aria-label="close events"
+      />
       <div className="absolute top-[10%] left-1/2 flex max-h-[78%] w-[min(94%,420px)] -translate-x-1/2 flex-col overflow-hidden rounded-[28px] bg-raised shadow-[0_20px_50px_rgba(59,42,20,0.28)] ring-4 ring-fg/10">
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <p className="text-base font-black">{title}</p>
-          <button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-xl bg-surface" aria-label="close">
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-9 place-items-center rounded-xl bg-surface"
+            aria-label="close"
+          >
             <X className="size-4" />
           </button>
         </div>
-        <div ref={list} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pt-1 pb-5">
+        <div
+          ref={list}
+          className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pt-1 pb-5"
+        >
           {len === 0 && !attempt ? (
-            <p className="rounded-2xl bg-surface px-3 py-4 text-sm font-bold text-subtle">{t("log.empty")}</p>
+            <p className="rounded-2xl bg-surface px-3 py-4 text-sm font-bold text-subtle">
+              {t("log.empty")}
+            </p>
           ) : null}
           {sources.map((src) => (
             <div key={src.replica.id} className="space-y-2">
               {sources.length > 1 ? (
-                <p className="text-[11px] font-black text-muted">{src.label} · #{src.replica.journal.length}</p>
+                <p className="text-[11px] font-black text-muted">
+                  {src.label} · #{src.replica.journal.length}
+                </p>
               ) : null}
               {src.replica.journal.map((e, i) => {
                 const on = selectedId === e.id;
@@ -592,12 +767,18 @@ function EventsDialog({
                     key={e.id}
                     type="button"
                     onClick={() => onSelect(on ? null : e.id)}
-                    className={cn("w-full rounded-2xl px-3 py-2.5 text-left", EVENT_TONE[e.event], on && "ring-2 ring-inset ring-fg")}
+                    className={cn(
+                      "w-full rounded-2xl px-3 py-2.5 text-left",
+                      EVENT_TONE[e.event],
+                      on && "ring-2 ring-inset ring-fg",
+                    )}
                   >
                     <p className="font-mono text-[12px] font-black">
                       #{i + 1} {e.event}
                     </p>
-                    <p className="break-all font-mono text-[11px] font-bold text-fg/80">{payloadLine(e.payload)}</p>
+                    <p className="break-all font-mono text-[11px] font-bold text-fg/80">
+                      {payloadLine(e.payload)}
+                    </p>
                   </button>
                 );
               })}
@@ -608,7 +789,9 @@ function EventsDialog({
               <p className="font-mono text-[12px] font-black text-danger">
                 {attempt.event} · {t("log.ghost")}
               </p>
-              <p className="break-all font-mono text-[11px] font-bold text-fg/70">{payloadLine(attempt.payload)}</p>
+              <p className="break-all font-mono text-[11px] font-bold text-fg/70">
+                {payloadLine(attempt.payload)}
+              </p>
             </div>
           ) : null}
         </div>
@@ -621,6 +804,9 @@ export function Workshop() {
   const { t } = useI18n();
   const { setNext, setLog, setSplash } = useHud();
   const [seated, setSeated] = useState(false);
+  const [curtain, setCurtain] = useState<BootCurtainPhase | "off">("off");
+  const [bootStep, setBootStep] = useState(0);
+  const [landed, setLanded] = useState(false);
   const [world, setWorld] = useState<World>(fresh);
   const [active, setActive] = useState<ReplicaId>("sun");
   const [mission, setMission] = useState<MissionId | 0>(1);
@@ -640,7 +826,16 @@ export function Workshop() {
   const run = useRef(0);
 
   const moonOpen = mission === 0 || mission >= 4;
-  const renamed = world.sun.journal.some((e) => e.event === "Named") || world.moon.journal.some((e) => e.event === "Named");
+  const [moonLane, setMoonLane] = useState(false);
+  const [moonIn, setMoonIn] = useState(false);
+  const stackRef = useRef<HTMLDivElement>(null);
+  const sunLaneRef = useRef<HTMLDivElement>(null);
+  const sunMode = useRef<"boot" | "fill" | "hug" | "pair">("boot");
+  const sunHerd = herd(world.sun).length;
+  const hugSun = !moonIn && sunHerd > 0;
+  const renamed =
+    world.sun.journal.some((e) => e.event === "Named") ||
+    world.moon.journal.some((e) => e.event === "Named");
   const spot: Spotlight = mission !== 0 && !won ? spotlightFor(mission, flags, renamed) : null;
   const logCount = world.sun.journal.length + world.moon.journal.length;
   const prevLog = useRef(0);
@@ -674,7 +869,191 @@ export function Workshop() {
     }
   }, []);
 
-  useEffect(() => () => { run.current += 1; }, []);
+  useEffect(
+    () => () => {
+      run.current += 1;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (curtain !== "rise") return;
+    const id = window.setTimeout(() => {
+      setSeated(true);
+      setCurtain((current) => (current === "rise" ? "hold" : current));
+    }, 1000);
+    return () => window.clearTimeout(id);
+  }, [curtain]);
+
+  useEffect(() => {
+    if (curtain !== "exit") return;
+    const land = window.setTimeout(() => setLanded(true), 300);
+    const done = window.setTimeout(() => setCurtain("off"), 1300);
+    return () => {
+      window.clearTimeout(land);
+      window.clearTimeout(done);
+    };
+  }, [curtain]);
+
+  useEffect(() => {
+    if (curtain !== "hold") return;
+    let alive = true;
+    void (async () => {
+      for (let i = 1; i <= 4; i++) {
+        if (!alive) return;
+        await wait(i === 1 ? 340 : 280);
+        if (!alive) return;
+        setBootStep(i);
+        sfx.step();
+      }
+      await wait(720);
+      if (!alive) return;
+      playCue("arrival", 1);
+      setCurtain("exit");
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [curtain]);
+
+  useEffect(() => {
+    if (moonOpen) {
+      setMoonLane(true);
+      let nested = 0;
+      const outer = window.requestAnimationFrame(() => {
+        nested = window.requestAnimationFrame(() => {
+          setMoonIn(true);
+          sfx.arrive();
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(outer);
+        window.cancelAnimationFrame(nested);
+      };
+    }
+    setMoonIn(false);
+    const hide = window.setTimeout(() => setMoonLane(false), prefersReducedMotion() ? 0 : 1700);
+    return () => window.clearTimeout(hide);
+  }, [moonOpen]);
+
+  // Sun lane height machine. Three modes:
+  // - "fill": no inline height — CSS `height: 100%` keeps the lane full even
+  //   while the shell is still settling after boot (first paint is correct
+  //   with zero JS involved).
+  // - "hug": inline pixel height equal to the isle's intrinsic content.
+  // - "pair": inline height cleared — the `is-pair` grid rows own the split.
+  // Transitions between modes always animate px → px (FLIP), never from a
+  // percentage, so the very first fill → hug shrink interpolates too.
+  useLayoutEffect(() => {
+    const stack = stackRef.current;
+    const sun = sunLaneRef.current;
+    if (!stack || !sun) return;
+    const prev = sunMode.current;
+    const mode = moonIn ? "pair" : hugSun ? "hug" : "fill";
+    sunMode.current = mode;
+
+    // Applies a height write with the transition suppressed for one layout pass.
+    const snap = (apply: () => void) => {
+      sun.classList.add("sun-lane-snap");
+      apply();
+      void sun.offsetHeight;
+      sun.classList.remove("sun-lane-snap");
+    };
+    const release = () =>
+      snap(() => {
+        sun.style.height = "";
+      });
+
+    if (mode === "pair") {
+      if (!sun.style.height) return; // already CSS-driven; grid rows animate the split
+      if (prefersReducedMotion()) {
+        release();
+        return;
+      }
+      if (prev === "hug") {
+        // Glide the pinned hug height toward the lane's half of the stack
+        // while the grid rows split, then hand control back to CSS 100%.
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        const half = Math.max(0, Math.round((stackContentHeight(stack) - rem * 0.5) / 2));
+        sun.style.height = `${half}px`;
+      }
+      const settle = window.setTimeout(() => {
+        if (sunMode.current === "pair") release();
+      }, 1750);
+      return () => window.clearTimeout(settle);
+    }
+
+    if (mode === "hug") {
+      const to = hugIsleHeight(sun);
+      if (prev === "boot" || prefersReducedMotion()) {
+        snap(() => {
+          sun.style.height = `${to}px`;
+        });
+        return;
+      }
+      // FLIP: pin the currently painted height in pixels first, so even the
+      // first shrink (starting from CSS `height: 100%`) interpolates.
+      const rect = Math.round(sun.getBoundingClientRect().height);
+      const from = sun.style.height ? rect : Math.max(rect, stackContentHeight(stack));
+      if (Math.abs(from - to) < 2) {
+        snap(() => {
+          sun.style.height = `${to}px`;
+        });
+        return;
+      }
+      snap(() => {
+        sun.style.height = `${from}px`;
+      });
+      let outer = 0;
+      let inner = 0;
+      outer = window.requestAnimationFrame(() => {
+        inner = window.requestAnimationFrame(() => {
+          // Re-measure: a freshly hatched card has finished layout by now.
+          sun.style.height = `${hugIsleHeight(sun)}px`;
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(outer);
+        window.cancelAnimationFrame(inner);
+      };
+    }
+
+    // mode === "fill"
+    if (!sun.style.height) return; // already on CSS `height: 100%`
+    if (prev === "boot" || prefersReducedMotion()) {
+      release();
+      return;
+    }
+    const to = stackContentHeight(stack);
+    if (Math.abs(Math.round(sun.getBoundingClientRect().height) - to) < 2) {
+      release();
+      return;
+    }
+    sun.style.height = `${to}px`;
+    const done = (event: TransitionEvent) => {
+      if (event.propertyName !== "height") return;
+      sun.removeEventListener("transitionend", done);
+      // Hand back to CSS so later shell resizes keep the lane full.
+      if (sunMode.current === "fill") release();
+    };
+    sun.addEventListener("transitionend", done);
+    return () => sun.removeEventListener("transitionend", done);
+    // `seated` matters: the lane refs are null until the play shell mounts, so
+    // this effect must re-run then to resolve "boot" → "fill" before the first
+    // real transition (otherwise the first hatch snaps instead of animating).
+  }, [seated, moonIn, hugSun, sunHerd]);
+
+  function beginPlay() {
+    armAudio();
+    if (prefersReducedMotion()) {
+      setSeated(true);
+      setLanded(true);
+      return;
+    }
+    playCue("loading", 1);
+    setBootStep(0);
+    setCurtain("rise");
+  }
 
   async function walk(ok: boolean, apply?: () => void) {
     const token = ++run.current;
@@ -742,7 +1121,7 @@ export function Workshop() {
       setForge(2);
       setFailing(true);
       setCaption("cap.no");
-      setCapParams({ why: t((`err.${result.error}` as MessageKey)) });
+      setCapParams({ why: t(`err.${result.error}` as MessageKey) });
     }
     setPending(null);
     setBusy(false);
@@ -890,171 +1269,277 @@ export function Workshop() {
       : t(`step.${forge}` as MessageKey, { event: attempt?.event ?? "Event" });
   const toastOn = forge >= 0 || failing;
 
-  if (!seated) {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div
-          aria-hidden
-          className="shrink-0 bg-hero-sky h-[max(4.75rem,calc(env(safe-area-inset-top)+4rem))] sm:h-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] lg:h-0"
-        />
-        <img
-          src="/hero.jpg"
-          alt="EventLog Isles"
-          width={1792}
-          height={1008}
-          fetchPriority="high"
-          decoding="async"
-          className="aspect-16/9 block h-auto w-full max-h-[min(58vh,58vw)] object-cover object-[center_18%] [mask-image:linear-gradient(to_bottom,#000_74%,transparent)]"
-        />
-        <div className="relative z-10 -mt-8 flex shrink-0 flex-col gap-3 px-4 pb-2 sm:px-6">
-          <p className="min-h-[2.2em] font-display text-[36px] leading-[0.95] font-semibold tracking-tight sm:min-h-[1.1em] sm:text-5xl">{t("boot.title")}</p>
-          <p className="min-h-[3.25em] max-w-md text-base leading-snug font-semibold text-muted">{t("boot.body")}</p>
-          <div className="relative left-1/2 w-[90vw] -translate-x-1/2">
-            <Button size="lg" className="h-14 w-full text-lg" onClick={() => { armAudio(); setSeated(true); }}>
-              {t("boot.go")}
-            </Button>
-          </div>
-          <div className="space-y-1 text-sm font-bold text-muted">
-            <p>
-              {t("boot.credit")}{" "}
-              <a href="https://x.com/xesrevinu" target="_blank" rel="noreferrer" className="text-fg underline decoration-2 underline-offset-2">
-                @xesrevinu
-              </a>
-            </p>
-            <p>
-              <a href="https://effect.website" target="_blank" rel="noreferrer" className="text-fg underline decoration-2 underline-offset-2">
-                {t("boot.site")}
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const boot =
+    curtain !== "off" ? (
+      <BootCurtain
+        key="boot-curtain"
+        phase={curtain}
+        step={bootStep}
+        onRiseEnd={() => {
+          setSeated(true);
+          setCurtain((current) => (current === "rise" ? "hold" : current));
+        }}
+        onExitEnd={() => {
+          setCurtain("off");
+        }}
+      />
+    ) : null;
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col gap-1">
-      <div className="shrink-0">
-        <div className="relative flex h-5 items-center gap-1.5">
-          <div className="flex min-w-0 flex-1 gap-0.5">
-            {([1, 2, 3, 4, 5, 6] as const).map((n) => {
-              const filled = mission === 0 || n < mission || (n === mission && won);
-              const here = mission !== 0 && n === mission && !won;
-              return (
-                <span
-                  key={n}
-                  className={cn(
-                    "h-1.5 flex-1 rounded-full",
-                    filled && "bg-accent",
-                    here && "bg-fg",
-                    !filled && !here && "bg-faint",
-                  )}
-                />
-              );
-            })}
-          </div>
-          {mission === 0 ? null : (
-            <span className="shrink-0 rounded-full bg-surface px-1.5 py-px text-[10px] font-black leading-none text-subtle">
-              {t("hud.step", { n: mission })}
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 min-w-0">
-          <p className="text-lg font-black leading-snug sm:text-xl">{won ? win : title}</p>
-          <p className="mt-0.5 text-sm leading-snug font-semibold text-muted sm:text-base">{won ? title : hint}</p>
-        </div>
-      </div>
-
-      <div className="relative min-h-0 flex-1">
-        <div className="flex h-full min-h-0 flex-col gap-2 p-0.5">
-          <Isle
-            replica={world.sun}
-            locked={false}
-            selected={active === "sun"}
-            lit={lit === "sun"}
-            spot={active === "sun" ? spot : null}
-            busy={busy}
-            pulse={pulse}
-            pending={pending}
-            onAct={onCardAct("sun")}
-            onStorm={() => void storm("sun")}
-            onReplay={() => void doReplay("sun")}
-            onFold={() => fold("sun")}
-            onPick={() => setActive("sun")}
-            onOpenLog={() => setLogView("sun")}
+    <>
+      {!seated ? (
+        <div className="flex h-full min-h-0 flex-col">
+          <div
+            aria-hidden
+            className="shrink-0 bg-hero-sky h-[max(4.75rem,calc(env(safe-area-inset-top)+4rem))] sm:h-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] lg:h-0"
           />
-          {moonOpen ? (
-            <>
-              <div className="flex shrink-0 gap-1.5">
-                <Button size="sm" className={cn("h-8 flex-1 text-xs", spot === "ferry" && "guide-spot")} data-guide={spot === "ferry" ? t("guide.tap") : undefined} disabled={busy} onClick={() => void ferry("sun", "moon")}>
-                  {t("act.ferry")}
-                </Button>
-                <Button size="sm" variant="sky" className="h-8 flex-1 text-xs" disabled={busy} onClick={() => void ferry("moon", "sun")}>
-                  {t("act.ferryBack")}
-                </Button>
+          <HeroMedia />
+          <div className="relative z-10 -mt-8 flex shrink-0 flex-col gap-3 px-4 pb-2 sm:px-6">
+            <p className="boot-headline min-h-[2.2em] font-display text-[36px] leading-[1.05] font-bold tracking-tight sm:min-h-[1.1em] sm:text-5xl">
+              {t("boot.title")}
+            </p>
+            <p className="min-h-[3.25em] max-w-md text-base leading-snug font-semibold text-muted">
+              {t("boot.body")}
+            </p>
+            <div className="relative left-1/2 w-[90vw] -translate-x-1/2">
+              <Button
+                size="lg"
+                className="h-14 w-full text-lg"
+                disabled={curtain !== "off"}
+                onClick={beginPlay}
+              >
+                {t("boot.go")}
+              </Button>
+            </div>
+            <div className="space-y-1 text-sm font-bold text-muted">
+              <p>
+                {t("boot.credit")}{" "}
+                <a
+                  href="https://x.com/xesrevinu"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-fg underline decoration-2 underline-offset-2"
+                >
+                  @xesrevinu
+                </a>
+              </p>
+              <p>
+                <a
+                  href="https://effect.website"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-fg underline decoration-2 underline-offset-2"
+                >
+                  {t("boot.site")}
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "boot-stage relative flex h-full min-h-0 flex-col gap-1",
+            landed && "is-landed",
+          )}
+        >
+          <div className="boot-arrive boot-arrive-copy shrink-0">
+            <div className="relative flex h-5 items-center gap-1.5">
+              <div className="flex min-w-0 flex-1 gap-0.5">
+                {([1, 2, 3, 4, 5, 6] as const).map((n) => {
+                  const filled = mission === 0 || n < mission || (n === mission && won);
+                  const here = mission !== 0 && n === mission && !won;
+                  return (
+                    <span
+                      key={n}
+                      className={cn(
+                        "h-1.5 flex-1 rounded-full",
+                        filled && "bg-accent",
+                        here && "bg-fg",
+                        !filled && !here && "bg-faint",
+                      )}
+                    />
+                  );
+                })}
               </div>
-              <Isle
-                replica={world.moon}
-                locked={false}
-                selected={active === "moon"}
-                lit={lit === "moon"}
-                spot={active === "moon" ? spot : null}
-                busy={busy}
-                pulse={pulse}
-                pending={pending}
-                onAct={onCardAct("moon")}
-                onStorm={() => void storm("moon")}
-                onReplay={() => void doReplay("moon")}
-                onFold={() => fold("moon")}
-                onPick={() => setActive("moon")}
-                onOpenLog={() => setLogView("moon")}
-              />
-            </>
+              {mission === 0 ? null : (
+                <span className="shrink-0 rounded-full bg-surface px-1.5 py-px text-[10px] font-black leading-none text-subtle">
+                  {t("hud.step", { n: mission })}
+                </span>
+              )}
+            </div>
+            <div className="isle-copy mt-0.5 min-w-0">
+              <p className="line-clamp-2 text-lg font-black leading-snug">{won ? win : title}</p>
+              <p className="line-clamp-2 text-sm leading-snug font-semibold text-muted">
+                {won ? title : hint}
+              </p>
+            </div>
+          </div>
+
+          <div className="boot-arrive boot-arrive-isle relative z-0 min-h-0 flex-1 overflow-visible">
+            <div
+              ref={stackRef}
+              className={cn("isle-stack h-full min-h-0 p-0.5", moonIn && "is-pair")}
+            >
+              <div ref={sunLaneRef} className="sun-lane">
+                <Isle
+                  replica={world.sun}
+                  locked={false}
+                  selected={active === "sun"}
+                  stretch
+                  lit={lit === "sun"}
+                  spot={!logView && active === "sun" ? spot : null}
+                  busy={busy}
+                  pulse={pulse}
+                  pending={pending}
+                  onAct={onCardAct("sun")}
+                  onStorm={() => void storm("sun")}
+                  onReplay={() => void doReplay("sun")}
+                  onFold={() => fold("sun")}
+                  onPick={() => setActive("sun")}
+                  onOpenLog={() => setLogView("sun")}
+                />
+              </div>
+              {moonLane ? (
+                <div className="isle-moon-lane" inert={!moonIn}>
+                  <div className="isle-ferry relative z-20 flex min-w-0 shrink-0 gap-1.5 overflow-visible">
+                    <GuideHit
+                      on={spot === "ferry"}
+                      label={t("guide.tap")}
+                      className="min-w-0 flex-1"
+                    >
+                      <Button
+                        size="sm"
+                        style={{ ["--i" as string]: 0 }}
+                        className={cn(
+                          "isle-ferry-btn h-8 w-full min-w-0 px-2 text-xs",
+                          spot === "ferry" && "guide-spot",
+                        )}
+                        disabled={busy}
+                        onClick={() => void ferry("sun", "moon")}
+                      >
+                        <span className="truncate">{t("act.ferry")}</span>
+                      </Button>
+                    </GuideHit>
+                    <Button
+                      size="sm"
+                      variant="sky"
+                      style={{ ["--i" as string]: 1 }}
+                      className="isle-ferry-btn h-8 min-w-0 flex-1 px-2 text-xs"
+                      disabled={busy}
+                      onClick={() => void ferry("moon", "sun")}
+                    >
+                      <span className="truncate">{t("act.ferryBack")}</span>
+                    </Button>
+                  </div>
+                  <div className="isle-moon-board">
+                    <Isle
+                      replica={world.moon}
+                      locked={false}
+                      selected={active === "moon"}
+                      stretch
+                      lit={lit === "moon"}
+                      spot={!logView && active === "moon" ? spot : null}
+                      busy={busy}
+                      pulse={pulse}
+                      pending={pending}
+                      onAct={onCardAct("moon")}
+                      onStorm={() => void storm("moon")}
+                      onReplay={() => void doReplay("moon")}
+                      onFold={() => fold("moon")}
+                      onPick={() => setActive("moon")}
+                      onOpenLog={() => setLogView("moon")}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <ForgeToast show={toastOn} failing={failing} forge={forge} text={stepHint} />
+          </div>
+
+          <div className="relative z-50 flex shrink-0 flex-col">
+            <div className="relative z-50 grid shrink-0 grid-cols-4 items-end gap-1.5 pt-10">
+              {SPECIES.map((sp, index) => {
+                const full = busy || herd(world[active]).length >= 2;
+                return (
+                  <div
+                    key={sp}
+                    style={{ ["--i" as string]: index }}
+                    className="boot-arrive boot-arrive-dock relative"
+                  >
+                    <Button
+                      variant={sp === "pip" ? "sun" : sp === "nub" ? "sky" : "primary"}
+                      aria-disabled={full}
+                      onClick={() => {
+                        if (!full) void hatch(sp);
+                      }}
+                      className={cn(
+                        "relative h-11 w-full px-1 text-xs",
+                        spot === "hatch" && sp === "pip" && !logView && "guide-spot",
+                      )}
+                    >
+                      {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
+                    </Button>
+                    <span
+                      className="absolute bottom-[42%] left-1/2 z-20 size-[4.5rem] -translate-x-1/2 cursor-pointer drop-shadow-[0_5px_8px_rgba(59,42,20,0.28)]"
+                      onClick={() => {
+                        if (!full) void hatch(sp);
+                      }}
+                    >
+                      <CritterSprite
+                        roam
+                        pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }}
+                        alt={sp}
+                      />
+                      {spot === "hatch" && sp === "pip" && !logView ? (
+                        <span className="guide-tip" aria-hidden>
+                          {t("guide.tap")}
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                );
+              })}
+              <Button
+                variant="quiet"
+                disabled={busy}
+                onClick={reset}
+                style={{ ["--i" as string]: SPECIES.length }}
+                className="boot-arrive boot-arrive-dock h-11 text-xs"
+              >
+                {t("hud.again")}
+              </Button>
+            </div>
+          </div>
+          {logView ? (
+            <EventsDialog
+              title={
+                logView === "all" ? t("log.all") : t(logView === "sun" ? "isle.sun" : "isle.moon")
+              }
+              sources={
+                logView === "all"
+                  ? [
+                      { label: t("isle.sun"), replica: world.sun },
+                      { label: t("isle.moon"), replica: world.moon },
+                    ]
+                  : [
+                      {
+                        label: t(logView === "sun" ? "isle.sun" : "isle.moon"),
+                        replica: world[logView],
+                      },
+                    ]
+              }
+              attempt={
+                attempt && (logView === "all" || attempt.isle === logView) ? attempt : null
+              }
+              selectedId={picked}
+              onSelect={setPicked}
+              onClose={() => setLogView(null)}
+            />
           ) : null}
         </div>
-        {logView ? (
-          <EventsDialog
-            title={logView === "all" ? t("log.all") : t(logView === "sun" ? "isle.sun" : "isle.moon")}
-            sources={
-              logView === "all"
-                ? [
-                    { label: t("isle.sun"), replica: world.sun },
-                    { label: t("isle.moon"), replica: world.moon },
-                  ]
-                : [{ label: t(logView === "sun" ? "isle.sun" : "isle.moon"), replica: world[logView] }]
-            }
-            attempt={attempt && (logView === "all" || attempt.isle === logView) ? attempt : null}
-            selectedId={picked}
-            onSelect={setPicked}
-            onClose={() => setLogView(null)}
-          />
-        ) : null}
-      </div>
-
-      <div className="flex shrink-0 flex-col gap-2.5 pt-2">
-        <TimelineBar forge={forge} failing={failing} />
-        <StepToast show={toastOn} failing={failing} text={stepHint} />
-        <div className="grid shrink-0 grid-cols-4 gap-1.5">
-          {SPECIES.map((sp) => (
-            <Button
-              key={sp}
-              variant={sp === "pip" ? "sun" : sp === "nub" ? "sky" : "primary"}
-              disabled={busy || herd(world[active]).length >= 2}
-              onClick={() => void hatch(sp)}
-              className={cn("h-11 gap-1 px-1 text-xs", spot === "hatch" && sp === "pip" && "guide-spot")}
-              data-guide={spot === "hatch" && sp === "pip" ? t("guide.tap") : undefined}
-            >
-              <span className="size-6">
-                <Face pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }} size={28} />
-              </span>
-              {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
-            </Button>
-          ))}
-          <Button variant="quiet" disabled={busy} onClick={reset} className="h-11 text-xs">
-            reset
-          </Button>
-        </div>
-      </div>
-    </div>
+      )}
+      {boot}
+    </>
   );
 }

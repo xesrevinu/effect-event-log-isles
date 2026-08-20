@@ -172,6 +172,7 @@ export const sfx = {
   commit: () => playCue("success", 1),
   reject: () => playCue("error", 1),
   ferry: () => playCue("page", 0.95),
+  arrive: () => playCue("arrival", 0.88),
   wipe: () => playCue("droplet", 0.95),
   rebuild: () => playCue("bloom", 0.95),
   win: () => playCue("sparkle", 1),

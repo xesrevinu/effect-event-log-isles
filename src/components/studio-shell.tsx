@@ -146,13 +146,17 @@ export function StudioShell({ children }: { children: ReactNode }) {
         <div
           className={cn(
             "relative z-10 flex min-h-0 w-full flex-1 flex-col",
-            !splash && "items-center justify-center",
+            splash
+              ? "overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y"
+              : "items-center justify-center overflow-hidden",
           )}
         >
           <div
             className={cn(
-              "relative flex min-h-0 w-full flex-col",
-              splash ? "flex-1" : "h-[min(100dvh,var(--studio-max-h))] max-w-[760px]",
+              "relative flex w-full flex-col",
+              splash
+                ? "min-h-full"
+                : "min-h-0 h-[min(100dvh,var(--studio-max-h))] max-w-[760px]",
             )}
           >
           <header
@@ -214,7 +218,14 @@ export function StudioShell({ children }: { children: ReactNode }) {
               <LangSwitch />
             </div>
           </header>
-          <main className={cn("min-h-0 flex-1 overflow-visible", splash ? "px-0 pb-[max(0.35rem,env(safe-area-inset-bottom))]" : "px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3")}>
+          <main
+            className={cn(
+              "flex flex-1 flex-col",
+              splash
+                ? "px-0 pb-[max(1rem,env(safe-area-inset-bottom))]"
+                : "min-h-0 overflow-visible px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3",
+            )}
+          >
             {children}
           </main>
           </div>

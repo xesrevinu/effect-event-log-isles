@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import type { MessageKey } from "@/lib/i18n";
 import { Button, Segmented } from "@/components/ui";
@@ -271,12 +271,18 @@ function WritePath() {
 export function HelpSheet({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("effect");
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  function switchTab(next: Tab) {
+    setTab(next);
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }
 
   return (
-    <div className="help-sheet absolute inset-0 z-40 flex flex-col px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4">
+    <div className="help-sheet absolute inset-0 z-40 flex flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4">
       <img src="/isles/sun.png" alt="" className="help-deco help-deco-sun" />
       <img src="/isles/moon.png" alt="" className="help-deco help-deco-moon" />
-      <div className="relative z-10">
+      <div className="relative z-10 shrink-0">
         <h2 className="help-title">{t("help.title")}</h2>
         <p className="help-lead text-sm font-semibold leading-snug text-muted">
           <HelpText text={t("help.lead")} />
@@ -284,7 +290,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
         <div className="mt-2.5">
           <Segmented
             value={tab}
-            onChange={setTab}
+            onChange={switchTab}
             ariaLabel={t("help.title")}
             options={[
               { id: "effect", label: t("help.tab.effect") },
@@ -293,7 +299,10 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
           />
         </div>
       </div>
-      <div className="no-scrollbar relative z-10 mt-2.5 min-h-0 flex-1 space-y-2.5 overflow-auto overscroll-contain pb-1">
+      <div
+        ref={bodyRef}
+        className="no-scrollbar relative z-10 mt-2.5 min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain pb-1"
+      >
         {tab === "effect" ? (
           <>
             <EffectMark />
@@ -328,7 +337,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
-      <Button className="relative z-10 mt-3" onClick={onClose}>
+      <Button className="relative z-10 mt-3 shrink-0" onClick={onClose}>
         {t("help.close")}
       </Button>
     </div>

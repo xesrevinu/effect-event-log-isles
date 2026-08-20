@@ -1,0 +1,123 @@
+name: Restore styles.css
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/restore-styles.yml"
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore styles from faa70c8 and clip horizontal overflow
+        run: |
+          set -euo pipefail
+          git show faa70c8:src/styles.css > src/styles.css
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path("src/styles.css")
+          text = p.read_text()
+          text = text.replace(
+              "width: min(27.4rem, 118%);",
+              "width: min(27.4rem, 100%);\n  max-width: 100%;",
+              1,
+          )
+          old = """.ray-nudge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.85rem;
+  overflow: visible;
+}"""
+          new = """.ray-nudge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.85rem;
+  overflow: hidden;
+}"""
+          if old not in text:
+              raise SystemExit("ray-nudge block missing")
+          text = text.replace(old, new, 1)
+          old_card = """.ray-card {
+  border: 2px solid color-mix(in oklab, var(--color-sun-deep) 36%, transparent);
+  border-bottom-width: 5px;
+  border-radius: 22px;
+  padding: 1rem 1rem 1.15rem;
+  background:
+    linear-gradient(180deg, #fffdf6 0%, #fff4c8 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 3px 0 rgba(59, 42, 20, 0.06);
+}"""
+          new_card = """.ray-card {
+  border: 2px solid color-mix(in oklab, var(--color-sun-deep) 36%, transparent);
+  border-bottom-width: 5px;
+  border-radius: 22px;
+  padding: 1rem 1rem 1.15rem;
+  background:
+    linear-gradient(180deg, #fffdf6 0%, #fff4c8 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 3px 0 rgba(59, 42, 20, 0.06);
+  overflow: hidden;
+  min-width: 0;
+}"""
+          if old_card not in text:
+              raise SystemExit("ray-card block missing")
+          text = text.replace(old_card, new_card, 1)
+          old_paper = """.help-paper {
+  position: relative;
+  isolation: isolate;
+  border: 2px solid rgba(59, 42, 20, 0.13);
+  border-bottom-width: 5px;
+  border-radius: 22px;
+  background-color: #fffdf6;
+  background-image: linear-gradient(180deg, #ffffff 0%, #fffdf6 40%, #fff6dc 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 3px 0 rgba(59, 42, 20, 0.06);
+}"""
+          new_paper = """.help-paper {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  border: 2px solid rgba(59, 42, 20, 0.13);
+  border-bottom-width: 5px;
+  border-radius: 22px;
+  background-color: #fffdf6;
+  background-image: linear-gradient(180deg, #ffffff 0%, #fffdf6 40%, #fff6dc 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 3px 0 rgba(59, 42, 20, 0.06);
+}"""
+          if old_paper not in text:
+              raise SystemExit("help-paper block missing")
+          text = text.replace(old_paper, new_paper, 1)
+          if "118%" in text:
+              raise SystemExit("118% still present")
+          p.write_text(text)
+          print("styles patched", p.stat().st_size)
+          PY
+
+      - name: Commit restored styles
+        run: |
+          set -euo pipefail
+          git config user.name "Grok"
+          git config user.email "grok@x.ai"
+          git add src/styles.css
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "Restore styles.css and clip help-sheet horizontal overflow."
+          git push

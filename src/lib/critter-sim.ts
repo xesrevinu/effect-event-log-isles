@@ -55,7 +55,7 @@ export type Replica = {
 
 export type WriteResult =
   | { ok: true; entry: Entry }
-  | { ok: false; error: string };
+  | { ok: false; error: string; detail?: string };
 
 const LABELS: Record<ReplicaId, string> = { sun: "Sun", moon: "Moon" };
 export const MAX_BELLY = 3;

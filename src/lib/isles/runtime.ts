@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Exit, Layer } from "effect";
+import { Context, Effect, Exit, Layer } from "effect";
 import * as EventJournal from "effect/unstable/eventlog/EventJournal";
 import * as EventLog from "effect/unstable/eventlog/EventLog";
 import * as EventLogEncryption from "effect/unstable/eventlog/EventLogEncryption";
@@ -12,7 +12,7 @@ import {
 } from "@/lib/critter-sim";
 import { compactCritters, encodeSnapshotEntry } from "@/lib/isles/compact";
 import { toViewEntries, toViewEntry, type ViewEntry } from "@/lib/isles/decode";
-import { handlerErrorCode } from "@/lib/isles/errors";
+import { formatWriteCause } from "@/lib/isles/errors";
 import { CritterEvents, critterLogSchema } from "@/lib/isles/events";
 import { layerHandlers } from "@/lib/isles/handlers";
 
@@ -174,6 +174,8 @@ export class Isles extends Context.Service<
 
 const makeIsles = (mode: JournalMode) =>
   Effect.gen(function* () {
+    const bus = yield* Reactivity.Reactivity;
+    const refreshViews = () => bus.invalidateUnsafe(["isle"]);
     const sunCtx = yield* Layer.build(makeIsleLayer("sun", mode));
     const moonCtx = yield* Layer.build(makeIsleLayer("moon", mode));
     const handle = (
@@ -212,28 +214,25 @@ const makeIsles = (mode: JournalMode) =>
             }),
           );
           if (Exit.isFailure(exit)) {
-            return {
-              ok: false,
-              error: handlerErrorCode(Cause.squash(exit.cause)),
-            } satisfies WriteResult;
+            const { code, detail } = formatWriteCause(exit.cause);
+            return { ok: false, error: code, detail } satisfies WriteResult;
           }
-          const rows = yield* handle.journal.entries.pipe(Effect.orDie);
+          const rowsExit = yield* Effect.exit(handle.journal.entries);
+          if (Exit.isFailure(rowsExit)) {
+            const { code, detail } = formatWriteCause(rowsExit.cause);
+            return { ok: false, error: code, detail } satisfies WriteResult;
+          }
+          const rows = rowsExit.value;
           const last = rows[rows.length - 1];
           if (!last) {
             return {
-              ok: true,
-              entry: {
-                id: "",
-                event,
-                primaryKey: String(payload.id ?? ""),
-                payload,
-                createdAt: Date.now(),
-                replicaId: isle,
-                seq: 0,
-              },
+              ok: false,
+              error: "jam",
+              detail: "EventLog.write succeeded but the journal is still empty",
             } satisfies WriteResult;
           }
           const entry = yield* toViewEntry(last, isle, rows.length);
+          refreshViews();
           return { ok: true, entry } satisfies WriteResult;
         }),
       entries: (isle) =>
@@ -278,6 +277,7 @@ const makeIsles = (mode: JournalMode) =>
             effect: replay,
           });
           dest.reactivity.invalidateUnsafe(["isle"]);
+          refreshViews();
           const imported = prepared.remotes.length - result.duplicateEntries.length;
           const destEntries = yield* toViewEntries(yield* dest.journal.entries, to);
           return {
@@ -289,9 +289,15 @@ const makeIsles = (mode: JournalMode) =>
         }),
       destroy: (isle) =>
         of(isle).log.destroy.pipe(
-          Effect.tap(() => Effect.sync(() => of(isle).reactivity.invalidateUnsafe(["isle"]))),
+          Effect.tap(() =>
+            Effect.sync(() => {
+              of(isle).reactivity.invalidateUnsafe(["isle"]);
+              refreshViews();
+            }),
+          ),
         ),
     });
   });
 
-export const layerIsles = (mode: JournalMode = "idb") => Layer.effect(Isles, makeIsles(mode));
+export const layerIsles = (mode: JournalMode = "idb") =>
+  Layer.effect(Isles, makeIsles(mode)).pipe(Layer.provideMerge(Reactivity.layer));

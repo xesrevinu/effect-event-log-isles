@@ -2,20 +2,65 @@ export type Locale = "zh" | "en";
 
 export const STORAGE_KEY = "eventlog-studio-locale";
 
+export function parseLocale(value: string | null | undefined): Locale | null {
+  return value === "zh" || value === "en" ? value : null;
+}
+
+/** Pick zh / en from an Accept-Language header, honoring q-values. */
+export function localeFromAcceptLanguage(header: string | null | undefined): Locale | null {
+  if (!header) return null;
+  const tags: { range: string; q: number }[] = [];
+  for (const raw of header.split(",")) {
+    const [rangeRaw, ...params] = raw.trim().split(";");
+    const range = rangeRaw?.trim().toLowerCase();
+    if (!range) continue;
+    let q = 1;
+    for (const param of params) {
+      const [key, value] = param.trim().split("=");
+      if (key === "q") {
+        const next = Number(value);
+        if (Number.isFinite(next)) q = next;
+      }
+    }
+    if (q <= 0) continue;
+    tags.push({ range, q });
+  }
+  tags.sort((a, b) => b.q - a.q);
+  for (const { range } of tags) {
+    if (range === "*") continue;
+    if (range === "zh" || range.startsWith("zh-")) return "zh";
+    if (range === "en" || range.startsWith("en-")) return "en";
+  }
+  return null;
+}
+
 export function detectBrowserLocale(): Locale {
   if (typeof navigator === "undefined") return "en";
   const langs = [navigator.language, ...(navigator.languages ?? [])];
-  return langs.some((l) => l.toLowerCase().startsWith("zh")) ? "zh" : "en";
+  return localeFromAcceptLanguage(langs.join(",")) ?? "en";
+}
+
+export function readCookieLocale(): Locale | null {
+  if (typeof document === "undefined") return null;
+  const parts = document.cookie.split(";");
+  for (const part of parts) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === STORAGE_KEY) return parseLocale(decodeURIComponent(rest.join("=")));
+  }
+  return null;
 }
 
 export function readStoredLocale(): Locale | null {
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "zh" || v === "en") return v;
+    return parseLocale(localStorage.getItem(STORAGE_KEY));
   } catch {
     /* private */
   }
   return null;
+}
+
+export function localeFromClient(): Locale {
+  return readStoredLocale() ?? readCookieLocale() ?? detectBrowserLocale();
 }
 
 export function writeStoredLocale(locale: Locale) {
@@ -24,6 +69,9 @@ export function writeStoredLocale(locale: Locale) {
   } catch {
     /* ignore */
   }
+  if (typeof document === "undefined") return;
+  const secure = location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${STORAGE_KEY}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
 }
 
 export function interpolate(template: string, params?: Record<string, string | number>) {
@@ -38,8 +86,13 @@ const zh = {
   "boot.go": "开始养",
   "boot.title": "两座小岛，等你养点什么",
   "boot.body": "一边太阳岛，一边月亮岛。点一只上去，看着它吃、玩、睡。",
-  "boot.credit": "由 Ray 与 Grok 制作",
-  "boot.site": "Effect 官网",
+  "boot.credit": "由 Ray 和 {grok} Grok 制作",
+  "boot.made":
+    "{phone} 在 iPhone 上，用 {grok} Grok Build 捏出第一版(太顶了)。导出后丢进 Cursor，让 {spark} Grok 4.6 抛光(狠狠蹬)，发现效果不错。",
+  "boot.art": "{pic} 每个样式、每张图、每段视频，都是 {grok} Grok 一个 token 一个 token 算出来的。",
+  "boot.effect":
+    "Effect 是一套 TypeScript 工具箱，专门写靠得住的程序。成功、失败、路上要什么，都记在类型里。",
+  "boot.site": "去 Effect 官网看看",
   "boot.lift": "正在打开账本",
   "boot.ready": "欢迎上岸",
   "boot.chip.pip": "Pip 醒来",
@@ -101,7 +154,7 @@ const zh = {
   "log.append": "只能追加，不能改已经写下的事件",
   "log.empty": "还没有事件。只有写入成功，才会记下来。",
   "log.ghost": "没有进账本",
-  "step.0": "client(\"{event}\", payload) 发出一次写入",
+  "step.0": 'client("{event}", payload) 发出一次写入',
   "step.1": "EventGroup 找到对应的 handler",
   "step.2": "先跑 handler。失败的话，账本不动",
   "step.3": "成功后，EventJournal 才追加一条记录",
@@ -140,14 +193,18 @@ const zh = {
   "help.tab.effect": "Effect",
   "help.tab.log": "EventLog",
   "help.fx.1.k": "先写清楚，再去做",
-  "help.fx.1.v": "Effect 不是一跑起来就停不下来的脚本。它先是一份说明：做成什么样、可能哪里不行、路上需要什么。你组合好，最后才真的去做。",
+  "help.fx.1.v":
+    "Effect 不是一跑起来就停不下来的脚本。它先是一份说明：做成什么样、可能哪里不行、路上需要什么。你组合好，最后才真的去做。",
   "help.fx.2.k": "成败写在类型上",
-  "help.fx.2.v": "三个空位：成功、失败、需要什么。失败也有名字，不会被悄悄吃掉。喂撑了、岛住满了，都是这种「说不」。",
+  "help.fx.2.v":
+    "三个空位：成功、失败、需要什么。失败也有名字，不会被悄悄吃掉。喂撑了、岛住满了，都是这种「说不」。",
   "help.fx.3.k": "这岛在教什么",
-  "help.fx.3.v": "这不是用 Effect 写的应用。岛上的玩法是给初学者看的演示：一件事行不行、记不记进账本，用游戏把 Effect 和 EventLog 的感觉演出来。",
+  "help.fx.3.v":
+    "这不是用 Effect 写的应用。岛上的玩法是给初学者看的演示：一件事行不行、记不记进账本，用游戏把 Effect 和 EventLog 的感觉演出来。",
   "help.ray.k": "本来只想讲给她听",
-  "help.ray.v": "瑞做这座岛，是为了跟老婆把 Effect 讲明白。越抛越亮，不小心做成了你现在玩的这个。还想看他再做更多好玩的？去推特催更。",
-  "help.ray.cta": "去催 @xesrevinu",
+  "help.ray.v":
+    "Ray 做这座岛，是为了跟老婆把 Effect 讲明白。本来只想简单抛光一下，不小心做得太好，变成了你现在玩的这个。还想看他再做更多好玩的？去推特催更。",
+  "help.ray.cta": "去催 Ray",
   "help.fx.slot.success": "做成了",
   "help.fx.slot.error": "说不",
   "help.fx.slot.needs": "路上要什么",
@@ -191,9 +248,16 @@ const en: Record<keyof typeof zh, string> = {
   "lang.label": "Language",
   "boot.go": "Start playing",
   "boot.title": "Two little isles, waiting for someone to raise.",
-  "boot.body": "Sun Isle on one side, Moon Isle on the other. Put one on, then watch it eat, play, and sleep.",
-  "boot.credit": "Made by Ray and Grok",
-  "boot.site": "effect.website",
+  "boot.body":
+    "Sun Isle on one side, Moon Isle on the other. Put one on, then watch it eat, play, and sleep.",
+  "boot.credit": "Made by Ray and {grok} Grok",
+  "boot.made":
+    "{phone} On an iPhone, {grok} Grok Build pinched out v1 (unreal). Exported it, tossed it into Cursor, and let {spark} Grok 4.6 polish it (we mashed the pedals). Turned out pretty good.",
+  "boot.art":
+    "{pic} Every style, picture, and clip was counted out by {grok} Grok, token by token.",
+  "boot.effect":
+    "Effect is a TypeScript toolkit for programs you can trust. Success, failure, and what it needs all live in the type.",
+  "boot.site": "Visit effect.website",
   "boot.lift": "Opening the journal",
   "boot.ready": "Welcome ashore",
   "boot.chip.pip": "Pip wakes",
@@ -255,7 +319,7 @@ const en: Record<keyof typeof zh, string> = {
   "log.append": "Append-only — existing entries never change",
   "log.empty": "No events yet. Only a successful write is recorded.",
   "log.ghost": "not in the journal",
-  "step.0": "client(\"{event}\", payload) submits a write",
+  "step.0": 'client("{event}", payload) submits a write',
   "step.1": "EventGroup finds the matching handler",
   "step.2": "The handler runs first. If it fails, the journal stays put",
   "step.3": "Only then EventJournal appends an entry",
@@ -289,19 +353,24 @@ const en: Record<keyof typeof zh, string> = {
   "forge.4": "journal",
 
   "help.title": "What is this teaching?",
-  "help.lead": "The isles already play it out. Here we just name two things: Effect, and its EventLog.",
+  "help.lead":
+    "The isles already play it out. Here we just name two things: Effect, and its EventLog.",
   "help.close": "Back to play",
   "help.tab.effect": "Effect",
   "help.tab.log": "EventLog",
   "help.fx.1.k": "Write it down, then do it",
-  "help.fx.1.v": "An Effect is not a script that starts and never stops. It is a description first: what success looks like, how it can fail, and what it needs. You put it together, then you run it.",
+  "help.fx.1.v":
+    "An Effect is not a script that starts and never stops. It is a description first: what success looks like, how it can fail, and what it needs. You put it together, then you run it.",
   "help.fx.2.k": "Success and failure live in the type",
-  "help.fx.2.v": "Three slots: success, error, and what it needs. Failures have names — they are not swallowed. Stuffed, isle-full: those are a typed “no”.",
+  "help.fx.2.v":
+    "Three slots: success, error, and what it needs. Failures have names — they are not swallowed. Stuffed, isle-full: those are a typed “no”.",
   "help.fx.3.k": "What this isle is for",
-  "help.fx.3.v": "This app is not written in Effect. The isles are a beginner tutorial: they act out whether something is allowed, and whether it gets written down, so Effect and EventLog can be felt in play.",
+  "help.fx.3.v":
+    "This app is not written in Effect. The isles are a beginner tutorial: they act out whether something is allowed, and whether it gets written down, so Effect and EventLog can be felt in play.",
   "help.ray.k": "Built to explain it to her",
-  "help.ray.v": "Ray made this isle so he could walk his wife through Effect. Then he polished it until it accidentally became the game you’re playing. Want more fun like this? Go poke him on X.",
-  "help.ray.cta": "Nudge @xesrevinu",
+  "help.ray.v":
+    "Ray made this isle so he could walk his wife through Effect. He only meant a light polish, then accidentally made it too good — and it became the game you’re playing. Want more fun like this? Go poke him on X.",
+  "help.ray.cta": "Nudge Ray",
   "help.fx.slot.success": "what you get",
   "help.fx.slot.error": "how it fails",
   "help.fx.slot.needs": "what it needs",

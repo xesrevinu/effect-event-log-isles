@@ -139,9 +139,12 @@ function RayPostcard() {
         href="https://x.com/xesrevinu"
         target="_blank"
         rel="noreferrer"
-        className="chunk chunk-sm tex-grain mt-4 flex h-11 w-full items-center justify-center rounded-2xl border-2 border-sun-deep bg-sun text-sm font-black text-fg"
+        className="ray-nudge"
       >
-        {t("help.ray.cta")}
+        <img src="/icons/nudge-ray.png" alt="" className="ray-nudge-phone" />
+        <span className="ray-nudge-label chunk chunk-sm tex-grain">
+          {t("help.ray.cta")}
+        </span>
       </a>
     </section>
   );

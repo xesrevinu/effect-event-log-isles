@@ -8,13 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import {
-  detectBrowserLocale,
   readStoredLocale,
   translate,
   writeStoredLocale,
   type Locale,
   type MessageKey,
-} from "src/lib/i18n";
+} from "@/lib/i18n";
 
 type I18nValue = {
   locale: Locale;
@@ -23,6 +22,10 @@ type I18nValue = {
 };
 
 const I18nContext = createContext<I18nValue | null>(null);
+
+function langTag(locale: Locale) {
+  return locale === "zh" ? "zh-Hans" : "en";
+}
 
 export function I18nProvider({
   hint,
@@ -34,12 +37,17 @@ export function I18nProvider({
   const [locale, setLocaleState] = useState<Locale>(hint);
 
   useEffect(() => {
-    const next = readStoredLocale() ?? detectBrowserLocale();
-    setLocaleState((prev) => (prev === next ? prev : next));
-  }, []);
+    const stored = readStoredLocale();
+    if (stored && stored !== hint) {
+      setLocaleState(stored);
+      return;
+    }
+    writeStoredLocale(hint);
+  }, [hint]);
 
   useEffect(() => {
-    document.documentElement.lang = locale === "zh" ? "zh-Hans" : "en";
+    writeStoredLocale(locale);
+    document.documentElement.lang = langTag(locale);
   }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {

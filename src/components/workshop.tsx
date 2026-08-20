@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Undo2, Wind, X } from "lucide-react";
+import { Clapperboard, Smartphone, Sparkles, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   compactReplica,
@@ -835,6 +835,45 @@ function EventsDialog({
   return createPortal(node, document.body);
 }
 
+function GrokMark() {
+  return (
+    <svg viewBox="0 0 12 11.57" aria-hidden className="boot-mark-grok">
+      <path
+        fill="currentColor"
+        d="M4.635 7.428 8.624 4.466c.196-.145.475-.088.568.137.491 1.19.272 2.619-.704 3.6-.976.981-2.334 1.197-3.575.707l-1.356.631c1.945 1.337 4.306 1.006 5.782-.479 1.17-1.177 1.533-2.781 1.194-4.228L10.536 4.837C10.044 2.711 10.657 1.862 11.911.125L12 0 10.349 1.66v-.005L4.634 7.429"
+      />
+      <path
+        fill="currentColor"
+        d="M3.811 8.147C2.416 6.807 2.656 4.732 3.847 3.535c.881-.886 2.324-1.247 3.583-.716l1.353-.628c-.244-.177-.556-.368-.915-.501C6.248 1.02 4.309 1.353 2.992 2.676 1.725 3.95 1.327 5.909 2.011 7.58c.511 1.249-.327 2.133-1.17 3.025L0 11.571l3.81-3.423"
+      />
+    </svg>
+  );
+}
+
+const CREDIT_MARKS = {
+  grok: () => <GrokMark />,
+  phone: () => <Smartphone strokeWidth={2.4} />,
+  spark: () => <Sparkles strokeWidth={2.4} />,
+  pic: () => <Clapperboard strokeWidth={2.4} />,
+} as const;
+
+function CreditBits({ text }: { text: string }) {
+  const parts = text.split(/\{(grok|phone|spark|pic)\}/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (i % 2 === 0) return part;
+        const Mark = CREDIT_MARKS[part as keyof typeof CREDIT_MARKS];
+        return (
+          <span key={`${part}-${i}`} className="boot-mark">
+            <Mark />
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export function Workshop() {
   const { t } = useI18n();
   const { setNext, setLog, setSplash } = useHud();
@@ -1352,28 +1391,46 @@ export function Workshop() {
                 {t("boot.go")}
               </Button>
             </div>
-            <div className="space-y-1 text-sm font-bold text-muted">
-              <p>
-                {t("boot.credit")}{" "}
-                <a
-                  href="https://x.com/xesrevinu"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-fg underline decoration-2 underline-offset-2"
-                >
-                  @xesrevinu
-                </a>
-              </p>
-              <p>
-                <a
-                  href="https://effect.website"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-fg underline decoration-2 underline-offset-2"
-                >
-                  {t("boot.site")}
-                </a>
-              </p>
+            <div className="flex max-w-md flex-col gap-2.5 text-[13px] font-semibold leading-snug text-muted sm:gap-3 sm:text-sm">
+              <div className="boot-note boot-note-who">
+                <p>
+                  <CreditBits text={t("boot.credit")} />{" "}
+                  <a
+                    href="https://x.com/xesrevinu"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-fg"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-current">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.727-8.829L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
+                    </svg>
+                    <span className="underline decoration-2 underline-offset-2">Ray</span>
+                  </a>
+                </p>
+              </div>
+              <div className="boot-note boot-note-make space-y-1.5">
+                <p>
+                  <CreditBits text={t("boot.made")} />
+                </p>
+                <p>
+                  <CreditBits text={t("boot.art")} />
+                </p>
+              </div>
+              <div className="boot-note boot-note-effect space-y-1.5">
+                <p>
+                  <CreditBits text={t("boot.effect")} />
+                </p>
+                <p>
+                  <a
+                    href="https://effect.website"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-fg underline decoration-2 underline-offset-2"
+                  >
+                    {t("boot.site")}
+                  </a>
+                </p>
+              </div>
             </div>
           </div>
         </div>

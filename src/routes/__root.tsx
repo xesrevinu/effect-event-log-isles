@@ -3,7 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { StudioShell } from "@/components/studio-shell";
 import { I18nProvider } from "@/lib/i18n-context";
-import type { Locale } from "@/lib/i18n";
+import { readLocaleHint } from "@/lib/read-locale-hint";
 import { allPetSheetUrls } from "@/lib/png-sequence";
 import appCss from "../styles.css?url";
 
@@ -26,8 +26,8 @@ const ogImage = origin ? `${origin}/og.jpg` : undefined;
 const xBanner = origin ? `${origin}/x-banner.jpg` : undefined;
 
 export const Route = createRootRoute({
-  loader: () => ({
-    localeHint: "en" as Locale,
+  loader: async () => ({
+    localeHint: await readLocaleHint(),
   }),
   head: () => ({
     meta: [

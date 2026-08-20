@@ -2,9 +2,13 @@
 
 [Play it](https://effect-event-log.grok.me) · 中 / EN
 
-Two islands, one journal. A playable demo of [Effect](https://effect.website) **EventLog**.
+Two little isles, waiting for someone to raise.
+Sun Isle on one side, Moon Isle on the other. Put one on, then watch it eat, play, and sleep.
 
-写进账本，岛上就长出来。太阳岛和月亮岛，各自一本只能往后写的账。
+两座小岛，等你养点什么。
+一边太阳岛，一边月亮岛。点一只上去，看着它吃、玩、睡。
+
+A playable demo of [Effect](https://effect.website) **EventLog**.
 
 ![EventLog Isles](public/og.jpg)
 

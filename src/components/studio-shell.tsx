@@ -222,7 +222,7 @@ export function StudioShell({ children }: { children: ReactNode }) {
             className={cn(
               "flex flex-1 flex-col",
               splash
-                ? "px-0 pb-[max(1rem,env(safe-area-inset-bottom))]"
+                ? "px-0 pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:!h-auto [&>*]:min-h-full"
                 : "min-h-0 overflow-visible px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3",
             )}
           >

@@ -50,36 +50,29 @@ export function Segmented<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="relative grid rounded-2xl bg-inset p-1"
+      className="help-tabs"
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       <span
         aria-hidden
-        className="absolute top-1 bottom-1 rounded-xl bg-surface transition-transform duration-200 ease-[var(--ease-out)]"
+        className="help-tabs-thumb"
         style={{
-          width: `calc((100% - 8px) / ${options.length})`,
+          width: `calc((100% - 6px) / ${options.length})`,
           transform: `translateX(calc(${index} * 100%))`,
-          left: 4,
+          left: 3,
         }}
       />
-      {options.map((opt) => {
-        const on = opt.id === value;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => onChange(opt.id)}
-            className={cn(
-              "relative z-10 h-10 px-2 text-sm font-extrabold transition-colors duration-150",
-              on ? "text-fg" : "text-muted",
-            )}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
+      {options.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          role="tab"
+          aria-selected={opt.id === value}
+          onClick={() => onChange(opt.id)}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }

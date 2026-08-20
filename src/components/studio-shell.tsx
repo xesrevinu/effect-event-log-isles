@@ -50,18 +50,22 @@ function BrandMark({ outlined = false, padded = false }: { outlined?: boolean; p
 function ChipIcon({
   label,
   onClick,
+  off = false,
   children,
 }: {
   label: string;
   onClick: () => void;
+  off?: boolean;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
+      data-cuelume-press=""
+      data-cuelume-release=""
       onClick={onClick}
-      className="grid size-8 place-items-center rounded-full text-muted transition-colors hover:bg-surface hover:text-fg"
+      className={cn("hud-chip", off && "hud-chip-off")}
     >
       {children}
     </button>
@@ -70,33 +74,30 @@ function ChipIcon({
 
 function LangSwitch() {
   const { locale, setLocale, t } = useI18n();
+  const index = locale === "zh" ? 0 : 1;
   return (
-    <div
-      role="tablist"
-      aria-label={t("lang.label")}
-      className="grid h-7 w-[5.75rem] shrink-0 grid-cols-2 rounded-full bg-inset p-0.5"
-    >
+    <div role="tablist" aria-label={t("lang.label")} className="hud-lang">
+      <span
+        aria-hidden
+        className="hud-lang-thumb"
+        style={{ transform: `translateX(${index * 100}%)` }}
+      />
       {([
         { id: "zh" as const, label: "中文" },
         { id: "en" as const, label: "EN" },
-      ]).map((opt) => {
-        const on = locale === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            role="tab"
-            aria-selected={on}
-            onClick={() => setLocale(opt.id)}
-            className={cn(
-              "h-6 w-full rounded-full px-1 text-[11px] font-extrabold",
-              on ? "bg-surface text-fg shadow-[0_1px_0_rgba(59,42,20,0.08)]" : "text-subtle",
-            )}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
+      ]).map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          role="tab"
+          aria-selected={locale === opt.id}
+          data-cuelume-press=""
+          data-cuelume-release=""
+          onClick={() => setLocale(opt.id)}
+        >
+          {opt.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -190,12 +191,13 @@ export function StudioShell({ children }: { children: ReactNode }) {
                 </Button>
               ) : null}
             </div>
-            <div className="flex items-center justify-self-end gap-0.5">
+            <div className="flex items-center justify-self-end gap-1">
               <ChipIcon label={t("help.title")} onClick={() => setHelp(true)}>
-                <CircleHelp className="size-4" />
+                <CircleHelp className="hud-mark size-[17px]" strokeWidth={2.45} />
               </ChipIcon>
               <ChipIcon
                 label={soundOn ? "mute" : "sound"}
+                off={!soundOn}
                 onClick={() => {
                   unlockAudio();
                   const nextOn = !sfxEnabled();
@@ -203,7 +205,11 @@ export function StudioShell({ children }: { children: ReactNode }) {
                   setSoundOn(nextOn);
                 }}
               >
-                {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                {soundOn ? (
+                  <Volume2 className="hud-vol size-[17px]" strokeWidth={2.45} />
+                ) : (
+                  <VolumeX className="size-[17px]" strokeWidth={2.45} />
+                )}
               </ChipIcon>
               <LangSwitch />
             </div>

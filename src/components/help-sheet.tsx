@@ -39,22 +39,20 @@ const BEATS: { k: MessageKey; v: MessageKey; code?: string }[] = [
 function EffectMark() {
   const { t } = useI18n();
   const slots = [
-    { name: "Success", gloss: t("help.fx.slot.success"), tone: "text-accent-deep" },
-    { name: "Error", gloss: t("help.fx.slot.error"), tone: "text-danger" },
-    { name: "Requirements", gloss: t("help.fx.slot.needs"), tone: "text-sky-deep" },
+    { name: "Success", gloss: t("help.fx.slot.success"), skin: "help-slot-ok", tone: "text-accent-deep" },
+    { name: "Error", gloss: t("help.fx.slot.error"), skin: "help-slot-no", tone: "text-danger" },
+    { name: "Requirements", gloss: t("help.fx.slot.needs"), skin: "help-slot-need", tone: "text-sky-deep" },
   ] as const;
   return (
-    <div className="rounded-[22px] bg-raised px-4 py-6">
-      <p className="text-center font-display text-[2.15rem] leading-none font-semibold tracking-tight text-fg">
-        Effect
-      </p>
-      <div className="mt-4 grid grid-cols-3 gap-2">
+    <div className="help-paper px-4 py-3.5">
+      <p className="help-effect-name">Effect</p>
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {slots.map((slot) => (
-          <div key={slot.name} className="min-w-0 text-center">
-            <p className={cn("font-display text-[0.95rem] leading-tight font-semibold tracking-tight", slot.tone)}>
+          <div key={slot.name} className={cn("help-slot", slot.skin)}>
+            <p className={cn("font-display text-[1.05rem] leading-tight font-semibold tracking-tight", slot.tone)}>
               {slot.name}
             </p>
-            <p className="mt-1.5 text-[10px] font-black tracking-wide text-subtle">{slot.gloss}</p>
+            <p className="mt-0.5 text-[11px] font-black tracking-wide text-subtle">{slot.gloss}</p>
           </div>
         ))}
       </div>
@@ -62,13 +60,89 @@ function EffectMark() {
   );
 }
 
-function Card({ title, body }: { title: string; body: string }) {
+function FxNotes() {
+  const { t } = useI18n();
   return (
-    <section className="rounded-[22px] bg-surface p-4">
-      <p className="font-black text-accent-deep">{title}</p>
-      <p className="mt-1.5 text-sm font-semibold leading-relaxed text-muted">
-        <HelpText text={body} />
+    <>
+      {FX_CARDS.map((card, i) => (
+        <section
+          key={card.k}
+          className={cn("help-paper px-4 py-3.5", i === 1 && "rotate-[0.4deg]", i === 2 && "-rotate-[0.35deg]")}
+        >
+          <div className="flex items-start gap-2.5">
+            <span className="help-sticker mt-0.5 shrink-0">{i + 1}</span>
+            <div className="min-w-0">
+              <p className="font-display text-[1.2rem] leading-snug font-semibold tracking-tight text-fg">
+                {t(card.k)}
+              </p>
+              <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-muted">
+                <HelpText text={t(card.v)} />
+              </p>
+            </div>
+          </div>
+        </section>
+      ))}
+    </>
+  );
+}
+
+function RayScene() {
+  return (
+    <svg className="ray-scene" viewBox="0 0 280 92" aria-hidden>
+      <ellipse className="ray-ground" cx="140" cy="82" rx="118" ry="8" />
+      <g className="ray-blob ray-blob-a">
+        <circle cx="58" cy="54" r="22" fill="#ffc800" />
+        <circle cx="51" cy="50" r="2.2" fill="#3b2a14" />
+        <circle cx="65" cy="50" r="2.2" fill="#3b2a14" />
+        <path d="M52 60c3 3 9 3 12 0" fill="none" stroke="#3b2a14" strokeWidth="2" strokeLinecap="round" />
+        <ellipse cx="46" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
+        <ellipse cx="70" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
+      </g>
+      <g className="ray-blob ray-blob-b">
+        <circle cx="222" cy="54" r="22" fill="#ce82ff" />
+        <circle cx="215" cy="50" r="2.2" fill="#3b2a14" />
+        <circle cx="229" cy="50" r="2.2" fill="#3b2a14" />
+        <path d="M216 60c3 3 9 3 12 0" fill="none" stroke="#3b2a14" strokeWidth="2" strokeLinecap="round" />
+        <ellipse cx="210" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
+        <ellipse cx="234" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
+      </g>
+      <g className="ray-heart">
+        <path
+          d="M140 44c-1.4-8-10-10-14-5-4 5 1.4 12 14 20 12.6-8 18-15 14-20-4-5-12.6-3-14 5z"
+          fill="#ff4b4b"
+        />
+      </g>
+      <g className="ray-spark ray-spark-1" fill="#ffe27a">
+        <path d="M96 22l1.6 4.4L102 28l-4.4 1.6L96 34l-1.6-4.4L90 28l4.4-1.6z" />
+      </g>
+      <g className="ray-spark ray-spark-2" fill="#fffdf6">
+        <path d="M184 18l1.2 3.2L188.4 22.4 185.2 24 184 27.2 182.8 24 179.6 22.4 183 21.2z" />
+      </g>
+      <g className="ray-letter">
+        <rect x="126" y="8" width="28" height="18" rx="3" fill="#fffdf6" stroke="#3b2a14" strokeWidth="1.6" />
+        <path d="M126 10l14 9 14-9" fill="none" stroke="#3b2a14" strokeWidth="1.6" />
+      </g>
+    </svg>
+  );
+}
+
+function RayPostcard() {
+  const { t } = useI18n();
+  return (
+    <section className="ray-card">
+      <RayScene />
+      <p className="text-xl font-black leading-snug text-fg">{t("help.ray.k")}</p>
+      <p className="mt-2 text-base font-semibold leading-relaxed text-muted">
+        <HelpText text={t("help.ray.v")} />
       </p>
+      <a
+        href="https://x.com/xesrevinu"
+        target="_blank"
+        rel="noreferrer"
+        className="chunk chunk-sm tex-grain mt-4 flex h-11 w-full items-center justify-center rounded-2xl border-2 border-sun-deep bg-sun text-sm font-black text-fg"
+      >
+        {t("help.ray.cta")}
+      </a>
     </section>
   );
 }
@@ -94,22 +168,22 @@ function WritePath() {
   const journalDead = !ok && step >= 2;
 
   return (
-    <section className="flex flex-col gap-3 rounded-[22px] bg-surface p-4 shadow-[0_1px_0_rgba(59,42,20,0.06)]">
+    <section className="help-paper flex flex-col gap-3 p-4">
       <div>
-        <p className="font-black text-accent-deep">{t("help.path.title")}</p>
+        <p className="font-display text-lg font-semibold tracking-tight text-fg">{t("help.path.title")}</p>
         <p className="mt-1 text-sm font-semibold text-muted">
           <HelpText text={t("help.path.hint")} />
         </p>
       </div>
       <div className="grid grid-cols-2 items-stretch gap-2.5">
-        <div className={cn("flex min-h-[5.5rem] items-center gap-2.5 rounded-[18px] px-3.5 py-3", ok ? "bg-sun/70" : "bg-inset")}>
+        <div className={cn("help-tile flex min-h-[5.5rem] items-center gap-2.5 px-3 py-3", ok && "help-tile-sun")}>
           <img src="/isles/sun.png" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
           <div className="min-w-0">
             <p className="text-[11px] font-black leading-none text-muted">{t("help.path.isle")}</p>
             <p className="mt-1.5 text-sm font-black leading-snug">{t(ok ? "help.path.isle.ok" : "help.path.isle.no")}</p>
           </div>
         </div>
-        <div className={cn("flex min-h-[5.5rem] items-center rounded-[18px] px-3.5 py-3", ok ? "bg-ok-dim" : "bg-danger-dim")}>
+        <div className={cn("help-tile flex min-h-[5.5rem] items-center px-3 py-3", !ok && "help-tile-no")}>
           <div className="min-w-0">
             <p className="text-[11px] font-black leading-none text-muted">{t("help.path.book")}</p>
             <p className={cn("mt-1.5 text-sm font-black leading-snug", !ok && "text-danger")}>
@@ -127,10 +201,7 @@ function WritePath() {
             setStep(3);
             setPlaying(false);
           }}
-          className={cn(
-            "h-9 rounded-full px-3 text-xs font-black",
-            ok ? "bg-ok-dim text-accent-deep" : "bg-inset text-muted",
-          )}
+          className={cn("help-choice", ok && "help-choice-on")}
         >
           {t("help.path.ok")}
         </button>
@@ -142,10 +213,7 @@ function WritePath() {
             setStep(2);
             setPlaying(false);
           }}
-          className={cn(
-            "h-9 rounded-full px-3 text-xs font-black",
-            !ok ? "bg-danger-dim text-danger" : "bg-inset text-muted",
-          )}
+          className={cn("help-choice", !ok && "help-choice-warn")}
         >
           {t("help.path.no")}
         </button>
@@ -167,11 +235,10 @@ function WritePath() {
                   setStep(i);
                 }}
                 className={cn(
-                  "min-w-0 flex-1 truncate rounded-full px-1 py-[6px] text-center text-[10px] font-black leading-none sm:text-[11px]",
-                  dead && "bg-danger text-accent-fg",
-                  here && !dead && "bg-accent text-accent-fg",
-                  done && !here && !dead && "bg-ok-dim text-accent-deep",
-                  !here && !done && !dead && "bg-inset text-subtle",
+                  "help-step sm:text-[11px]",
+                  dead && "help-step-dead",
+                  here && !dead && "help-step-on",
+                  done && !here && !dead && "help-step-done",
                 )}
               >
                 {t(`help.path.${i}.k` as MessageKey)}
@@ -203,48 +270,62 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>("effect");
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col bg-bg px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4">
-      <h2 className="font-display text-2xl font-semibold">{t("help.title")}</h2>
-      <p className="mt-1 text-sm font-semibold leading-snug text-muted">
-        <HelpText text={t("help.lead")} />
-      </p>
-      <div className="mt-3">
-        <Segmented
-          value={tab}
-          onChange={setTab}
-          ariaLabel={t("help.title")}
-          options={[
-            { id: "effect", label: t("help.tab.effect") },
-            { id: "log", label: t("help.tab.log") },
-          ]}
-        />
+    <div className="help-sheet absolute inset-0 z-40 flex flex-col px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4">
+      <img src="/isles/sun.png" alt="" className="help-deco help-deco-sun" />
+      <img src="/isles/moon.png" alt="" className="help-deco help-deco-moon" />
+      <div className="relative z-10">
+        <h2 className="help-title">{t("help.title")}</h2>
+        <p className="help-lead text-sm font-semibold leading-snug text-muted">
+          <HelpText text={t("help.lead")} />
+        </p>
+        <div className="mt-2.5">
+          <Segmented
+            value={tab}
+            onChange={setTab}
+            ariaLabel={t("help.title")}
+            options={[
+              { id: "effect", label: t("help.tab.effect") },
+              { id: "log", label: t("help.tab.log") },
+            ]}
+          />
+        </div>
       </div>
-      <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-auto overscroll-contain pb-1">
+      <div className="no-scrollbar relative z-10 mt-2.5 min-h-0 flex-1 space-y-2.5 overflow-auto overscroll-contain pb-1">
         {tab === "effect" ? (
           <>
             <EffectMark />
-            {FX_CARDS.map((card) => (
-              <Card key={card.k} title={t(card.k)} body={t(card.v)} />
-            ))}
+            <FxNotes />
+            <RayPostcard />
           </>
         ) : (
           <>
             <WritePath />
-            <p className="px-1 pt-1 text-sm font-black text-fg">{t("help.beats")}</p>
+            <p className="px-1 pt-0.5 font-display text-base font-semibold tracking-tight text-fg">
+              {t("help.beats")}
+            </p>
             {BEATS.map((beat, i) => (
-              <section key={beat.k} className="rounded-[22px] bg-surface p-3.5">
-                <p className="text-[11px] font-black text-subtle">{i + 1}/6</p>
-                <p className="font-black text-accent-deep">{t(beat.k)}</p>
-                <p className="mt-1 text-sm font-semibold leading-snug text-muted">
-                  <HelpText text={t(beat.v)} />
-                </p>
-                {beat.code ? <TsCode src={beat.code} className="mt-2" /> : null}
+              <section
+                key={beat.k}
+                className={cn("help-paper p-3.5", i % 2 === 1 && "rotate-[0.35deg]")}
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className="help-sticker mt-0.5 shrink-0">{i + 1}</span>
+                  <div className="min-w-0">
+                    <p className="font-display text-[1.15rem] leading-snug font-semibold tracking-tight text-fg">
+                      {t(beat.k)}
+                    </p>
+                    <p className="mt-1.5 text-sm font-semibold leading-snug text-muted">
+                      <HelpText text={t(beat.v)} />
+                    </p>
+                    {beat.code ? <TsCode src={beat.code} className="mt-2" /> : null}
+                  </div>
+                </div>
               </section>
             ))}
           </>
         )}
       </div>
-      <Button className="mt-3" onClick={onClose}>
+      <Button className="relative z-10 mt-3" onClick={onClose}>
         {t("help.close")}
       </Button>
     </div>

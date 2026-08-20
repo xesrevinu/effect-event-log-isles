@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Undo2, Wind, X } from "lucide-react";
+import { Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   compactReplica,
@@ -136,17 +136,45 @@ function StatPips({
   kind: "belly" | "mood" | "energy";
 }) {
   const n = Math.max(0, Math.min(max, value));
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    let alive = true;
+    let waitId = 0;
+    let clearId = 0;
+    const arm = () => {
+      waitId = window.setTimeout(
+        () => {
+          if (!alive) return;
+          setIdle(true);
+          clearId = window.setTimeout(() => {
+            if (!alive) return;
+            setIdle(false);
+            arm();
+          }, 620);
+        },
+        3800 + Math.random() * 7200,
+      );
+    };
+    waitId = window.setTimeout(arm, 600 + Math.random() * 2800);
+    return () => {
+      alive = false;
+      window.clearTimeout(waitId);
+      window.clearTimeout(clearId);
+    };
+  }, [kind]);
+  const hop = Boolean(pulse) || idle;
   return (
     <div
       className={cn(
-        "stat-inlay flex min-w-0 flex-1 items-center justify-center rounded-full px-1.5 py-1",
-        kind === "belly" && "bg-warn-dim",
-        kind === "mood" && "bg-info-dim",
-        kind === "energy" && "bg-[#f3e2ff]",
+        "stat-inlay flex min-w-0 flex-1 items-center justify-center rounded-full px-1.5 py-1.5",
+        kind === "belly" && "stat-inlay-belly bg-warn-dim",
+        kind === "mood" && "stat-inlay-mood bg-info-dim",
+        kind === "energy" && "stat-inlay-energy bg-[#f3e2ff]",
       )}
       aria-label={`${label} ${n}/${max}`}
     >
-      <span className="flex items-end gap-1">
+      <span className="flex items-end gap-1.5">
         {Array.from({ length: max }, (_, i) => {
           const on = i < n;
           if (kind === "belly") {
@@ -154,11 +182,11 @@ function StatPips({
               <span
                 key={i}
                 className={cn(
-                  "size-3 rounded-full border-2",
+                  "size-4 rounded-full border-2",
                   on
                     ? "border-[#c77812] bg-[#ff9600] shadow-[0_1px_0_#c77812]"
                     : "border-[#e8c96a]/80 bg-white/40",
-                  pulse && on && "anim-pip",
+                  hop && on && "anim-pip",
                 )}
                 style={{ animationDelay: `${i * 70}ms` }}
               />
@@ -169,9 +197,9 @@ function StatPips({
               <span
                 key={i}
                 className={cn(
-                  "mb-px size-2.5 rotate-45 rounded-[3px]",
+                  "mb-px size-3.5 rotate-45 rounded-[3px]",
                   on ? "bg-sky shadow-[0_1px_0_#1899d6]" : "bg-white/45",
-                  pulse && on && "anim-pip",
+                  hop && on && "anim-pip",
                 )}
                 style={{ animationDelay: `${i * 70}ms` }}
               />
@@ -181,12 +209,12 @@ function StatPips({
             <span
               key={i}
               className={cn(
-                "w-1.5 rounded-[3px]",
-                i === 0 ? "h-2" : i === 1 ? "h-3" : "h-4",
+                "w-2 rounded-[3px]",
+                i === 0 ? "h-2.5" : i === 1 ? "h-3.5" : "h-5",
                 on ? "bg-grape shadow-[0_1px_0_#a568cc]" : "bg-white/45",
-                pulse && on && "anim-pip",
+                hop && on && "anim-pip",
               )}
-              style={{ animationDelay: `${i * 70}ms` }}
+                style={{ animationDelay: `${i * 70}ms` }}
             />
           );
         })}
@@ -329,7 +357,7 @@ function CritterCard({
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
                 className={cn(
-                  "h-8 w-full rounded-lg bg-inset px-2 text-base font-black text-fg ring-2 ring-grape",
+                  "name-edit name-edit-field h-8 w-full px-2.5 text-base font-black text-fg",
                   spot === "name" && "guide-spot",
                 )}
               />
@@ -341,12 +369,14 @@ function CritterCard({
                   setEditing(true);
                 }}
                 className={cn(
-                  "flex max-w-full items-center gap-1 rounded-lg bg-inset px-1.5 py-0.5 text-left shadow-[inset_0_1px_0_rgba(59,42,20,0.07)]",
+                  "name-edit flex max-w-full items-center gap-1 px-2 py-0.5 text-left",
                   spot === "name" && "guide-spot",
                 )}
               >
                 <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
-                <Pencil className="size-3.5 shrink-0 text-muted" aria-hidden />
+                <span className="name-pencil-sway shrink-0">
+                  <img src="/icons/pencil.png" alt="" className="name-pencil size-5 object-contain" />
+                </span>
               </button>
             )}
           </GuideHit>
@@ -376,7 +406,7 @@ function CritterCard({
         </div>
       </div>
       <div className="mt-1 grid grid-cols-4 gap-1.5">
-        {actions.map((action) => {
+        {actions.map((action, actionIndex) => {
           const guided = Boolean(action.spot && spot === action.spot);
           return (
             <GuideHit key={action.event} on={guided} label={t("guide.tap")} className="min-w-0">
@@ -398,6 +428,10 @@ function CritterCard({
                   src={action.icon}
                   alt=""
                   className="act-mark pointer-events-none relative z-[2] size-8 object-contain"
+                  style={{
+                    animationDelay: `${actionIndex * 0.37}s`,
+                    animationDuration: `${2.15 + actionIndex * 0.55}s`,
+                  }}
                 />
               </button>
             </GuideHit>
@@ -474,10 +508,10 @@ function Isle({
             "relative isolate flex min-h-8 min-w-0 items-center gap-1 overflow-visible rounded-full py-1 pr-2.5 pl-[calc(2.7rem+8px)] transition-colors duration-200",
             selected
               ? cn(
-                  "anim-isle-pick border-b-[3px] shadow-[0_2px_0_rgba(59,42,20,0.14)]",
+                  "border-b-[3px] shadow-[0_2px_0_rgba(59,42,20,0.14)]",
                   sun
-                    ? "border-[#b8860b]/35 bg-raised"
-                    : "border-sky-deep/50 bg-sky text-accent-fg",
+                    ? "anim-isle-pick border-[#b8860b]/35 bg-raised"
+                    : "anim-isle-pick-moon border-sky-deep/50 bg-sky text-accent-fg",
                 )
               : "border-b-2 border-[#3b2a14]/10 bg-surface/90",
           )}
@@ -628,13 +662,13 @@ function TimelineBar({ forge, failing }: { forge: number; failing: boolean }) {
             <span
               aria-current={on ? "step" : undefined}
               className={cn(
-                "min-w-0 flex-1 truncate rounded-full px-1 py-[5px] text-center text-[10px] font-black leading-none tracking-tight sm:text-[11px]",
-                dead && "anim-shake bg-danger text-accent-fg",
-                locked && "bg-faint text-subtle",
-                on && !dead && "anim-pipe-live bg-accent text-accent-fg",
-                done && "bg-accent text-accent-fg",
-                !running && "bg-surface text-subtle",
-                running && !on && !done && !dead && !locked && "bg-surface text-subtle",
+                "forge-chip min-w-0 flex-1 truncate px-1 py-[5px] text-center text-[10px] font-black leading-none tracking-tight sm:text-[11px]",
+                dead && "anim-shake forge-chip-dead",
+                locked && "forge-chip-locked",
+                on && !dead && "anim-pipe-live forge-chip-on",
+                done && !on && "forge-chip-done",
+                !running && "forge-chip-idle",
+                running && !on && !done && !dead && !locked && "forge-chip-idle",
               )}
             >
               {t(`forge.${i + 1}` as MessageKey)}
@@ -677,26 +711,23 @@ function ForgeToast({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-2 bottom-2 z-30 sm:inset-x-3",
+        "pointer-events-none absolute inset-x-2 bottom-[5.75rem] z-[60] sm:inset-x-3",
         leaving ? "anim-toast-out" : "anim-toast-in",
       )}
     >
-      <div
-        className={cn(
-          "rounded-[22px] px-2.5 pt-1.5 pb-2.5 shadow-[0_10px_28px_rgba(59,42,20,0.16)]",
-          failing ? "bg-danger-dim" : "bg-surface/95",
-        )}
-      >
-        <TimelineBar forge={forge} failing={failing} />
-        <p
-          key={text}
-          className={cn(
-            "anim-copy px-1.5 pt-0.5 text-[14px] font-black leading-snug sm:text-[15px]",
-            failing ? "text-danger" : "text-fg",
-          )}
-        >
-          {text}
-        </p>
+      <div className={cn("forge-plaque", failing && "is-fail")}>
+        <div className="forge-plaque-inner">
+          <TimelineBar forge={forge} failing={failing} />
+          <p
+            key={text}
+            className={cn(
+              "anim-copy px-1.5 pt-0.5 text-[14px] font-black leading-snug sm:text-[15px]",
+              failing ? "text-danger" : "text-fg",
+            )}
+          >
+            {text}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -747,7 +778,7 @@ function EventsDialog({
         </div>
         <div
           ref={list}
-          className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pt-1 pb-5"
+          className="no-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pt-1 pb-5"
         >
           {len === 0 && !attempt ? (
             <p className="rounded-2xl bg-surface px-3 py-4 text-sm font-bold text-subtle">
@@ -840,8 +871,11 @@ export function Workshop() {
   const renamed =
     world.sun.journal.some((e) => e.event === "Named") ||
     world.moon.journal.some((e) => e.event === "Named");
+  const toastOn = forge >= 0 || failing;
   const spot: Spotlight =
-    mission !== 0 && !won && !logView ? spotlightFor(mission, flags, renamed) : null;
+    mission !== 0 && !won && !logView && !toastOn
+      ? spotlightFor(mission, flags, renamed)
+      : null;
   const logCount = world.sun.journal.length + world.moon.journal.length;
   const prevLog = useRef(0);
   const logBump = useRef(0);
@@ -1272,7 +1306,6 @@ export function Workshop() {
     : forge < 0
       ? t("log.append")
       : t(`step.${forge}` as MessageKey, { event: attempt?.event ?? "Event" });
-  const toastOn = forge >= 0 || failing;
 
   const boot =
     curtain !== "off" ? (
@@ -1301,7 +1334,10 @@ export function Workshop() {
           <HeroMedia />
           <div className="relative z-10 -mt-8 flex shrink-0 flex-col gap-3 px-4 pb-2 sm:px-6">
             <p className="boot-headline min-h-[2.2em] font-display text-[36px] leading-[1.05] font-bold tracking-tight sm:min-h-[1.1em] sm:text-5xl">
-              {t("boot.title")}
+              <span className="boot-headline-ink">{t("boot.title")}</span>
+              <span className="boot-headline-mask" aria-hidden>
+                <span className="boot-headline-tide">{t("boot.title")}</span>
+              </span>
             </p>
             <p className="min-h-[3.25em] max-w-md text-base leading-snug font-semibold text-muted">
               {t("boot.body")}
@@ -1359,9 +1395,9 @@ export function Workshop() {
                       key={n}
                       className={cn(
                         "h-1.5 flex-1 rounded-full",
-                        filled && "bg-accent",
-                        here && "bg-fg",
-                        !filled && !here && "bg-faint",
+                        filled && "bg-warn",
+                        here && "bg-grape",
+                        !filled && !here && "bg-[#e6d8c4]",
                       )}
                     />
                   );
@@ -1459,7 +1495,6 @@ export function Workshop() {
                 </div>
               ) : null}
             </div>
-            <ForgeToast show={toastOn} failing={failing} forge={forge} text={stepHint} />
           </div>
 
           <div className="relative z-50 flex shrink-0 flex-col">
@@ -1516,6 +1551,7 @@ export function Workshop() {
               </Button>
             </div>
           </div>
+          <ForgeToast show={toastOn} failing={failing} forge={forge} text={stepHint} />
           {logView ? (
             <EventsDialog
               title={

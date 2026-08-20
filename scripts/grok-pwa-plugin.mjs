@@ -9,13 +9,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   acceptsHtml,
-  appNameFromHost,
   createHeadInjector,
   injectGrokPwaHead,
   isDocumentPath,
   isInstallQuery,
   renderInstallPageHtml,
   renderWebManifest,
+  resolveAppName,
 } from "./grok-pwa-shared.mjs";
 
 const INSTALL_PAGE_PATH = join(dirname(fileURLToPath(import.meta.url)), "install-page.html");
@@ -99,7 +99,7 @@ function wrapHtmlResponses(middlewares) {
 
     const originalWrite = res.write.bind(res);
     const originalEnd = res.end.bind(res);
-    const injector = createHeadInjector(appNameFromHost(requestHost(req)));
+    const injector = createHeadInjector(resolveAppName(requestHost(req)));
     let mode = null; // null = undecided, "inject" | "passthrough"
 
     const decideMode = () => {

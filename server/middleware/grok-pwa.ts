@@ -15,12 +15,12 @@
 import installPageTemplate from "../../scripts/install-page.html?raw";
 import {
   acceptsHtml,
-  appNameFromHost,
   createHeadInjector,
   isDocumentPath,
   isInstallQuery,
   renderInstallPageHtml,
   renderWebManifest,
+  resolveAppName,
 } from "../../scripts/grok-pwa-shared.mjs";
 
 interface GrokPwaEvent {
@@ -100,7 +100,7 @@ export default async function grokPwaMiddleware(
     String(result.headers.get("content-type") ?? "").includes("text/html") &&
     !result.headers.get("content-encoding")
   ) {
-    return injectHeadStreaming(result, appNameFromHost(requestHost(event)));
+    return injectHeadStreaming(result, resolveAppName(requestHost(event)));
   }
   return result;
 }

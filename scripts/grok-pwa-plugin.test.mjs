@@ -11,6 +11,7 @@ import {
   isDocumentPath,
   isInstallQuery,
   renderWebManifest,
+  resolveAppName,
   stripInstallParams,
 } from "./grok-pwa-shared.mjs";
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
@@ -174,6 +175,22 @@ test("names the install page from host slug", () => {
   assert.equal(appNameFromHost("wild-race.grok.me"), "Wild Race");
 });
 
+test("does not title-case Vercel deployment hosts", () => {
+  assert.equal(
+    appNameFromHost("01a00eb0-df3b-7c10-b053-7d5cf222b131-7ruynx90e-xai-org.vercel.app"),
+    "Grok App",
+  );
+  assert.equal(appNameFromHost("mixer.grok.me"), "Mixer");
+});
+
+test("resolveAppName prefers the product display name", () => {
+  assert.equal(resolveAppName("localhost:8080"), "EventLog Isles");
+  assert.equal(
+    resolveAppName("01a00eb0-df3b-7c10-b053-7d5cf222b131-7ruynx90e-xai-org.vercel.app"),
+    "EventLog Isles",
+  );
+});
+
 test("rejects hosts that are not plain slugs", () => {
   assert.equal(appNameFromHost("<script>alert(1)</script>"), "Grok App");
   assert.equal(appNameFromHost('"><img src=x onerror=1>.grok.me'), "Grok App");
@@ -181,7 +198,7 @@ test("rejects hosts that are not plain slugs", () => {
 
 test("renders install page markup", () => {
   const html = renderInstallPage("wild-race.grok.me", "/?install=1&platform=ios");
-  assert.match(html, /Add Wild Race to your/);
+  assert.match(html, /Add EventLog Isles to your/);
   assert.match(html, /\/__grok\/install\/styles\.css/);
   assert.match(html, /href="\/"/);
   assert.equal(html.includes("{{APP_NAME}}"), false);
@@ -195,8 +212,9 @@ test("escapes host-derived values in the install page", () => {
 
 test("renders the manifest with the per-app name", () => {
   const manifest = JSON.parse(renderWebManifest("wild-race.grok.me"));
-  assert.equal(manifest.name, "Wild Race");
-  assert.equal(manifest.short_name, "Wild Race");
+  assert.equal(manifest.name, "EventLog Isles");
+  assert.equal(manifest.short_name, "Isles");
+  assert.equal(manifest.description, "Two islands, one journal.");
   assert.equal(manifest.theme_color, "#fff3c4");
   assert.equal(manifest.background_color, "#fff3c4");
   assert.equal(manifest.icons[0].src, "/__grok/icon-180.png");
@@ -209,6 +227,15 @@ test("renders the manifest with the per-app name", () => {
       "/__grok/icon-512-maskable.png",
     ],
   );
+});
+
+test("manifest name does not inherit the Vercel deployment host", () => {
+  const manifest = JSON.parse(
+    renderWebManifest("01a00eb0-df3b-7c10-b053-7d5cf222b131-7ruynx90e-xai-org.vercel.app"),
+  );
+  assert.equal(manifest.name, "EventLog Isles");
+  assert.equal(manifest.short_name, "Isles");
+  assert.doesNotMatch(manifest.name, /01a00eb0|xai.org|Xai Org/i);
 });
 
 // Tripwires: the deployed-app path only works if Nitro scans server/ — an

@@ -7,6 +7,13 @@
 
 export const DEFAULT_APP_NAME = "Grok App";
 
+/** Product identity. Wins over host-slug derivation — published hosts are often
+ *  the Vercel deployment hostname (a ULID), which title-cases into a long
+ *  garbage string on the Home Screen. */
+export const APP_DISPLAY_NAME = "EventLog Isles";
+export const APP_SHORT_NAME = "Isles";
+export const APP_DESCRIPTION = "Two islands, one journal.";
+
 export function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -30,6 +37,8 @@ export function appNameFromHost(hostHeader) {
     !host ||
     host === "localhost" ||
     host.endsWith(".local") ||
+    host.endsWith(".vercel.app") ||
+    host.includes("xai-org") ||
     /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)
   ) {
     return DEFAULT_APP_NAME;
@@ -45,6 +54,11 @@ export function appNameFromHost(hostHeader) {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ") || DEFAULT_APP_NAME
   );
+}
+
+export function resolveAppName(hostHeader) {
+  const explicit = String(APP_DISPLAY_NAME ?? "").trim();
+  return explicit || appNameFromHost(hostHeader);
 }
 
 export function isInstallQuery(url) {
@@ -84,16 +98,19 @@ export function stripInstallParams(url) {
 
 export function renderInstallPageHtml(template, { host, url } = {}) {
   return String(template)
-    .replaceAll("{{APP_NAME}}", escapeHtml(appNameFromHost(host)))
+    .replaceAll("{{APP_NAME}}", escapeHtml(resolveAppName(host)))
     .replaceAll("{{APP_URL}}", escapeHtml(stripInstallParams(url)));
 }
 
 export function renderWebManifest(hostHeader) {
-  const name = appNameFromHost(hostHeader);
+  const name = resolveAppName(hostHeader);
+  const shortName = String(APP_SHORT_NAME ?? "").trim() || name;
+  const description = String(APP_DESCRIPTION ?? "").trim();
   return JSON.stringify(
     {
       name,
-      short_name: name,
+      short_name: shortName,
+      ...(description ? { description } : {}),
       id: "/",
       start_url: "/",
       scope: "/",

@@ -1402,7 +1402,7 @@ export function Workshop() {
                 {t("boot.go")}
               </Button>
             </div>
-            <div className="flex max-w-md flex-col gap-2.5 text-[13px] font-semibold leading-snug text-muted sm:gap-3 sm:text-sm">
+            <div className="relative left-1/2 w-[90vw] -translate-x-1/2 grid grid-cols-1 gap-2.5 text-[13px] font-semibold leading-snug text-muted sm:gap-3 sm:text-sm lg:grid-cols-3">
               <div className="boot-note boot-note-who flex items-center gap-2">
                 <p className="min-w-0 flex-1">
                   <CreditBits text={t("boot.credit")} />{" "}

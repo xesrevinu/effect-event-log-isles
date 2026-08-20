@@ -360,6 +360,7 @@
 }
 
 .boot-note {
+  height: 100%;
   padding: 0.7rem 0.85rem 0.8rem;
   border: 1.5px solid rgba(59, 42, 20, 0.05);
   border-bottom-width: 2px;

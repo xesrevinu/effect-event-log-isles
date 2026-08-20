@@ -123,8 +123,8 @@ const zh = {
   "ms.5.win": "同一个 primaryKey，两边各自写下了不同的事件。",
 
   "ms.6.title": "折成一条",
-  "ms.6.hint": "多玩几次，让它长大，再点压缩账本。",
-  "ms.6.win": "一长串事件收成一条快照。还是它，账本变短了。",
+  "ms.6.hint": "多玩几次让账本变长，再点压缩：渡船把快照送到对岸。这边账本不会被改写。",
+  "ms.6.win": "对岸收到快照。这座岛的账本仍是只追加的。",
 
   "ms.free.title": "接下来随便玩",
   "ms.free.hint": "喂、玩、睡、改名、放生。也可以再让两边对不上。",
@@ -180,7 +180,7 @@ const zh = {
   "cap.syncEmpty": "两边已经对齐。",
   "cap.storm": "岛被吹空了，账本还在。",
   "cap.replay": "正按账本一只只长回来。",
-  "cap.fold": "压缩好了。回放结果一样。",
+  "cap.fold": "对岸收到快照。这边账本仍是只追加的。",
   "cap.conflict": "同一只，两边都改过。",
 
   "forge.1": "client",
@@ -201,7 +201,7 @@ const zh = {
     "三个空位：成功、失败、需要什么。失败也有名字，不会被悄悄吃掉。喂撑了、岛住满了，都是这种「说不」。",
   "help.fx.3.k": "这岛在教什么",
   "help.fx.3.v":
-    "这不是用 Effect 写的应用。岛上的玩法是给初学者看的演示：一件事行不行、记不记进账本，用游戏把 Effect 和 EventLog 的感觉演出来。",
+    "这座岛就是用 Effect EventLog 写的。handler 先说行不行，行了才记进 IndexedDB 账本。Atom 把账本绑到岛上。",
   "help.ray.k": "本来只想讲给她听",
   "help.ray.v":
     "Ray 做这座岛，是为了跟老婆把 Effect 讲明白。本来只想简单抛光一下，不小心做得太好，变成了你现在玩的这个。还想看他再做更多好玩的？去推特催更。",
@@ -289,8 +289,8 @@ const en: Record<keyof typeof zh, string> = {
   "ms.5.win": "Same primaryKey — each side wrote a different entry.",
 
   "ms.6.title": "Fold the history",
-  "ms.6.hint": "Play a few times so it grows, then tap compact.",
-  "ms.6.win": "A long chain becomes one snapshot. Same critter, shorter journal.",
+  "ms.6.hint": "Play a few times so the book grows, then tap compact. The ferry sends a snapshot; this isle’s journal stays append-only.",
+  "ms.6.win": "The other isle got a snapshot. This book is still append-only.",
 
   "ms.free.title": "The isles are yours",
   "ms.free.hint": "Feed, play, sleep, rename, release. Or split the two sides again.",
@@ -346,7 +346,7 @@ const en: Record<keyof typeof zh, string> = {
   "cap.syncEmpty": "Already in sync.",
   "cap.storm": "Isle cleared. The journal remains.",
   "cap.replay": "Growing them back from the journal.",
-  "cap.fold": "Compacted. Replay matches.",
+  "cap.fold": "The other isle got a snapshot. This book is still append-only.",
   "cap.conflict": "Same critter, both sides wrote.",
 
   "forge.1": "client",
@@ -368,7 +368,7 @@ const en: Record<keyof typeof zh, string> = {
     "Three slots: success, error, and what it needs. Failures have names — they are not swallowed. Stuffed, isle-full: those are a typed “no”.",
   "help.fx.3.k": "What this isle is for",
   "help.fx.3.v":
-    "This app is not written in Effect. The isles are a beginner tutorial: they act out whether something is allowed, and whether it gets written down, so Effect and EventLog can be felt in play.",
+    "This isle is written with Effect EventLog. The handler decides first; only a yes is committed to the IndexedDB journal. Atom binds that journal to the view.",
   "help.ray.k": "Built to explain it to her",
   "help.ray.v":
     "Ray made this isle so he could walk his wife through Effect. He only meant a light polish, then accidentally made it too good — and it became the game you’re playing. Want more fun like this? Go poke him on X.",

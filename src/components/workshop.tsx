@@ -1,29 +1,34 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { RegistryProvider, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react";
+import { Exit } from "effect";
+import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import { Clapperboard, Smartphone, Sparkles, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
-  compactReplica,
   defaultName,
   herd,
-  makeReplica,
   MAX_BELLY,
   MAX_ENERGY,
   MAX_HERD,
   MAX_MOOD,
   newCritterId,
-  rebuildProjection,
-  replay,
   SPECIES,
-  syncFrom,
-  wipeProjection,
-  writeLocal,
   type Critter,
   type EventTag,
   type Replica,
   type ReplicaId,
   type Species,
 } from "@/lib/critter-sim";
+import {
+  destroyAtom,
+  ferryAtom,
+  islesRuntime,
+  moonEntriesAtom,
+  sunEntriesAtom,
+  writeAtom,
+} from "@/lib/isles/atoms";
+import { viewReplica } from "@/lib/isles/view";
 import {
   checkMission,
   emptyFlags,
@@ -100,12 +105,6 @@ function hugIsleHeight(lane: HTMLElement) {
     kids.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0) +
     Math.max(0, kids.length - 1) * gap;
   return Math.round(headerH + slotPad + inner + slotMargin + borderY);
-}
-
-type World = { sun: Replica; moon: Replica };
-
-function fresh(): World {
-  return { sun: makeReplica("sun"), moon: makeReplica("moon") };
 }
 
 const STEPS = ["client()", "EventGroup", "handler", "journal"] as const;
@@ -868,13 +867,30 @@ function GithubMark({ className }: { className?: string }) {
 }
 
 export function Workshop() {
+  return (
+    <RegistryProvider>
+      <WorkshopApp />
+    </RegistryProvider>
+  );
+}
+
+function WorkshopApp() {
   const { t } = useI18n();
   const { setNext, setLog, setSplash } = useHud();
+  useAtomMount(islesRuntime);
+  const sunRows = AsyncResult.getOrElse(useAtomValue(sunEntriesAtom), () => []);
+  const moonRows = AsyncResult.getOrElse(useAtomValue(moonEntriesAtom), () => []);
+  const writeEvent = useAtomSet(writeAtom, { mode: "promiseExit" });
+  const ferryEvents = useAtomSet(ferryAtom, { mode: "promiseExit" });
+  const destroyIsle = useAtomSet(destroyAtom, { mode: "promiseExit" });
   const [seated, setSeated] = useState(false);
   const [curtain, setCurtain] = useState<BootCurtainPhase | "off">("off");
   const [bootStep, setBootStep] = useState(0);
   const [landed, setLanded] = useState(false);
-  const [world, setWorld] = useState<World>(fresh);
+  const [playhead, setPlayhead] = useState<{ sun: number | null; moon: number | null }>({
+    sun: null,
+    moon: null,
+  });
   const [active, setActive] = useState<ReplicaId>("sun");
   const [mission, setMission] = useState<MissionId | 0>(1);
   const [flags, setFlags] = useState<Flags>(emptyFlags);
@@ -898,6 +914,10 @@ export function Workshop() {
   const stackRef = useRef<HTMLDivElement>(null);
   const sunLaneRef = useRef<HTMLDivElement>(null);
   const sunMode = useRef<"boot" | "fill" | "hug" | "pair">("boot");
+  const world = {
+    sun: viewReplica("sun", sunRows, playhead.sun),
+    moon: viewReplica("moon", moonRows, playhead.moon),
+  };
   const sunHerd = herd(world.sun).length;
   const hugSun = !moonIn && sunHerd > 0;
   const renamed =
@@ -932,13 +952,21 @@ export function Workshop() {
     return () => setLog(null);
   }, [seated, logCount, setLog]);
 
-  const check = useCallback((next: World, nextFlags: Flags, id: MissionId | 0) => {
-    if (id === 0) return;
-    if (checkMission(id, next.sun, next.moon, nextFlags)) {
-      setWon(true);
-      sfx.win();
-    }
-  }, []);
+  const check = useCallback(
+    (
+      nextSun: Replica,
+      nextMoon: Replica,
+      nextFlags: Flags,
+      id: MissionId | 0,
+    ) => {
+      if (id === 0) return;
+      if (checkMission(id, nextSun, nextMoon, nextFlags)) {
+        setWon(true);
+        sfx.win();
+      }
+    },
+    [],
+  );
 
   useEffect(
     () => () => {
@@ -1148,9 +1176,11 @@ export function Workshop() {
 
   async function act(isle: ReplicaId, event: EventTag, payload: Record<string, unknown>) {
     if (busy) return;
-    const replica = world[isle];
     sfx.stamp();
-    const { replica: nextRep, result } = writeLocal(replica, event, payload);
+    const exit = await writeEvent({ isle, event, payload });
+    const result = Exit.isSuccess(exit)
+      ? exit.value
+      : { ok: false as const, error: "jam" };
     const petId = String((result.ok ? result.entry.payload.id : payload.id) ?? "");
     setAttempt({
       event,
@@ -1169,10 +1199,9 @@ export function Workshop() {
       played: flags.played || (result.ok && event === "Played"),
       slept: flags.slept || (result.ok && event === "Slept"),
     };
-    const next = { ...world, [isle]: nextRep };
     const ok = await walk(result.ok, () => {
       if (result.ok) {
-        setWorld(next);
+        setPlayhead((current) => ({ ...current, [isle]: null }));
         setFlags(nextFlags);
         setActive(isle);
         setLit(isle);
@@ -1196,7 +1225,13 @@ export function Workshop() {
     }
     setPending(null);
     setBusy(false);
-    check(next, nextFlags, mission);
+    const nextSun = isle === "sun" && result.ok
+      ? viewReplica("sun", [...sunRows, result.entry], null)
+      : world.sun;
+    const nextMoon = isle === "moon" && result.ok
+      ? viewReplica("moon", [...moonRows, result.entry], null)
+      : world.moon;
+    check(nextSun, nextMoon, nextFlags, mission);
     window.setTimeout(() => {
       if (run.current === token) {
         setForge(-1);
@@ -1233,18 +1268,25 @@ export function Workshop() {
     void act(isle, "Hatched", { id: newCritterId(), species, name: defaultName(species) });
   }
 
-  async function ferry(from: ReplicaId, to: ReplicaId) {
+  async function ferry(from: ReplicaId, to: ReplicaId, compact = false) {
     if (busy || !moonOpen) return;
     setBusy(true);
     sfx.ferry();
-    const result = syncFrom(world[from], world[to]);
-    setCaption(result.imported.length ? "cap.sync" : "cap.syncEmpty");
-    setCapParams({ n: result.imported.length });
+    const exit = await ferryEvents({ from, to, compact });
+    const result = Exit.isSuccess(exit)
+      ? exit.value
+      : { imported: 0, conflicts: 0, compacted: false, destEntries: world[to].journal };
+    setCaption(result.imported ? "cap.sync" : "cap.syncEmpty");
+    setCapParams({ n: result.imported });
     await wait(1200);
-    const nextFlags: Flags = { ...flags, conflicted: flags.conflicted || result.conflicts > 0 };
+    const nextFlags: Flags = {
+      ...flags,
+      conflicted: flags.conflicted || result.conflicts > 0,
+      compacted: flags.compacted || result.compacted,
+    };
     if (result.conflicts > 0) setCaption("cap.conflict");
-    const next = { ...world, [to]: result.target };
-    setWorld(next);
+    if (compact && result.compacted) setCaption("cap.fold");
+    setPlayhead((current) => ({ ...current, [to]: null }));
     setFlags(nextFlags);
     setActive(to);
     setLit(to);
@@ -1253,7 +1295,13 @@ export function Workshop() {
       if (run.current === token) setLit(null);
     }, 480);
     setBusy(false);
-    check(next, nextFlags, mission);
+    const destView = viewReplica(to, result.destEntries, null);
+    check(
+      to === "sun" ? destView : world.sun,
+      to === "moon" ? destView : world.moon,
+      nextFlags,
+      mission,
+    );
   }
 
   async function storm(id: ReplicaId) {
@@ -1261,7 +1309,7 @@ export function Workshop() {
     setBusy(true);
     sfx.wipe();
     setCaption("cap.storm");
-    setWorld({ ...world, [id]: wipeProjection(world[id]) });
+    setPlayhead((current) => ({ ...current, [id]: 0 }));
     setFlags({ ...flags, wiped: true, rebuilt: false });
     setPulse({ ok: false, nonce: Date.now() });
     await wait(900);
@@ -1273,38 +1321,32 @@ export function Workshop() {
     setBusy(true);
     setCaption("cap.replay");
     const replica = world[id];
-    setWorld((w) => ({ ...w, [id]: { ...w[id], projection: {} } }));
+    setPlayhead((current) => ({ ...current, [id]: 0 }));
     for (let i = 0; i < replica.journal.length; i++) {
       const entry = replica.journal[i];
       setPicked(entry.id);
       setPulse({ petId: entry.primaryKey, event: entry.event, ok: true, nonce: Date.now() });
-      setWorld((w) => ({
-        ...w,
-        [id]: { ...w[id], projection: replay(replica.journal.slice(0, i + 1)) },
-      }));
+      setPlayhead((current) => ({ ...current, [id]: i + 1 }));
       sfx.rebuild();
       await wait(750);
     }
-    const nextRep = rebuildProjection(replica);
-    const next = { ...world, [id]: nextRep };
+    const nextRep = viewReplica(id, replica.journal, null);
     const nextFlags: Flags = { ...flags, rebuilt: herd(nextRep).length > 0 };
-    setWorld(next);
+    setPlayhead((current) => ({ ...current, [id]: null }));
     setFlags(nextFlags);
     setBusy(false);
-    check(next, nextFlags, mission);
+    check(
+      id === "sun" ? nextRep : world.sun,
+      id === "moon" ? nextRep : world.moon,
+      nextFlags,
+      mission,
+    );
   }
 
   function fold(id: ReplicaId) {
-    if (busy) return;
-    const { replica, shorter } = compactReplica(world[id]);
-    if (!shorter) return;
-    sfx.commit();
-    setCaption("cap.fold");
-    const next = { ...world, [id]: replica };
-    const nextFlags: Flags = { ...flags, compacted: true };
-    setWorld(next);
-    setFlags(nextFlags);
-    check(next, nextFlags, mission);
+    if (busy || !moonOpen) return;
+    const to: ReplicaId = id === "sun" ? "moon" : "sun";
+    void ferry(id, to, true);
   }
 
   function advance() {
@@ -1319,7 +1361,9 @@ export function Workshop() {
 
   function reset() {
     run.current += 1;
-    setWorld(fresh());
+    void destroyIsle("sun");
+    void destroyIsle("moon");
+    setPlayhead({ sun: null, moon: null });
     setActive("sun");
     setMission(1);
     setFlags(emptyFlags());

@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { RegistryProvider, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react";
-import { Exit } from "effect";
+import { Cause, Exit } from "effect";
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
 import { Clapperboard, Smartphone, Sparkles, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -217,6 +217,7 @@ type Attempt = {
   payload: Record<string, unknown>;
   ok: boolean;
   error?: string;
+  detail?: string;
   entryId?: string;
   isle: ReplicaId;
 };
@@ -805,6 +806,11 @@ function EventsDialog({
               <p className="break-all font-mono text-[11px] font-bold text-fg/70">
                 {payloadLine(attempt.payload)}
               </p>
+              {attempt.detail ? (
+                <p className="mt-1 break-all font-mono text-[10px] font-bold text-danger/80">
+                  {attempt.detail}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1180,14 +1186,16 @@ function WorkshopApp() {
     const exit = await writeEvent({ isle, event, payload });
     const result = Exit.isSuccess(exit)
       ? exit.value
-      : { ok: false as const, error: "jam" };
-    const petId = String((result.ok ? result.entry.payload.id : payload.id) ?? "");
+      : { ok: false as const, error: "jam", detail: Cause.pretty(exit.cause) };
+    const committed = result.ok && result.entry.id.length > 0;
+    const petId = String((committed ? result.entry.payload.id : payload.id) ?? "");
     setAttempt({
       event,
-      payload: result.ok ? result.entry.payload : payload,
-      ok: result.ok,
-      error: result.ok ? undefined : result.error,
-      entryId: result.ok ? result.entry.id : undefined,
+      payload: committed ? result.entry.payload : payload,
+      ok: committed,
+      error: committed ? undefined : result.ok ? "jam" : result.error,
+      detail: committed ? undefined : result.ok ? "write returned an empty journal id" : result.detail,
+      entryId: committed ? result.entry.id : undefined,
       isle,
     });
     setPending({ petId, event });
@@ -1195,12 +1203,12 @@ function WorkshopApp() {
     setCaption("cap.walk");
     const nextFlags: Flags = {
       ...flags,
-      rejected: flags.rejected || !result.ok,
-      played: flags.played || (result.ok && event === "Played"),
-      slept: flags.slept || (result.ok && event === "Slept"),
+      rejected: flags.rejected || !committed,
+      played: flags.played || (committed && event === "Played"),
+      slept: flags.slept || (committed && event === "Slept"),
     };
-    const ok = await walk(result.ok, () => {
-      if (result.ok) {
+    const ok = await walk(committed, () => {
+      if (committed) {
         setPlayhead((current) => ({ ...current, [isle]: null }));
         setFlags(nextFlags);
         setActive(isle);
@@ -1208,7 +1216,7 @@ function WorkshopApp() {
         sfx.commit();
         setCaption("cap.ok");
         setPending(null);
-        setPicked(result.entry.id);
+        setPicked(result.ok ? result.entry.id : "");
         setPulse({ petId, event, ok: true, nonce: Date.now() });
       } else {
         setPending(null);
@@ -1217,18 +1225,20 @@ function WorkshopApp() {
     });
     const token = run.current;
     if (!ok) return;
-    if (!result.ok) {
+    if (!committed) {
+      const why = t(`err.${result.ok ? "jam" : result.error}` as MessageKey);
+      const detail = result.ok ? "write returned an empty journal id" : result.detail;
       setForge(2);
       setFailing(true);
       setCaption("cap.no");
-      setCapParams({ why: t(`err.${result.error}` as MessageKey) });
+      setCapParams({ why: detail ? `${why} ${detail}` : why });
     }
     setPending(null);
     setBusy(false);
-    const nextSun = isle === "sun" && result.ok
+    const nextSun = isle === "sun" && result.ok && committed
       ? viewReplica("sun", [...sunRows, result.entry], null)
       : world.sun;
-    const nextMoon = isle === "moon" && result.ok
+    const nextMoon = isle === "moon" && result.ok && committed
       ? viewReplica("moon", [...moonRows, result.entry], null)
       : world.moon;
     check(nextSun, nextMoon, nextFlags, mission);

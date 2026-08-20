@@ -26,6 +26,10 @@ describe("Isles EventLog", () => {
     );
 
     expect(result.hatched.ok).toBe(true);
+    if (result.hatched.ok) {
+      expect(result.hatched.entry.id.length).toBeGreaterThan(0);
+      expect(result.hatched.entry.event).toBe("Hatched");
+    }
     expect(result.afterHatch.map((entry) => entry.event)).toEqual(["Hatched"]);
     expect(result.fed.ok).toBe(true);
     expect(result.stuffed).toEqual({ ok: false, error: "stuffed" });

@@ -15,7 +15,7 @@ const petSheetLinks = allPetSheetUrls().map((href) => ({
 
 const APP_NAME = "EventLog Isles";
 const APP_DESC =
-  "Two islands, one journal. A playable demo of Effect EventLog — raise critters and watch an append-only event journal.";
+  "Two little isles, waiting for someone to raise. Put one on, then watch it eat, play, and sleep.";
 const AUTHOR = "Ray";
 const AUTHOR_X = "https://x.com/xesrevinu";
 const AUTHOR_HANDLE = "@xesrevinu";
@@ -71,9 +71,9 @@ export const Route = createRootRoute({
             { property: "og:image:type", content: "image/jpeg" },
             { property: "og:image:width", content: "1200" },
             { property: "og:image:height", content: "630" },
-            { property: "og:image:alt", content: "EventLog Isles — two islands, one journal" },
+            { property: "og:image:alt", content: "EventLog Isles — two little isles, waiting for someone to raise" },
             { name: "twitter:image", content: ogImage },
-            { name: "twitter:image:alt", content: "EventLog Isles — two islands, one journal" },
+            { name: "twitter:image:alt", content: "EventLog Isles — two little isles, waiting for someone to raise" },
           ]
         : []),
       ...(xBanner

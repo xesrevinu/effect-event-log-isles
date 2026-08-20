@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Pencil, Undo2, Wind, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -724,7 +725,7 @@ function EventsDialog({
     if (el) el.scrollTop = el.scrollHeight;
   }, [len, attempt?.entryId]);
 
-  return (
+  const node = (
     <div className="pointer-events-auto fixed inset-0 z-[80]">
       <button
         type="button"
@@ -798,6 +799,9 @@ function EventsDialog({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return node;
+  return createPortal(node, document.body);
 }
 
 export function Workshop() {
@@ -836,7 +840,8 @@ export function Workshop() {
   const renamed =
     world.sun.journal.some((e) => e.event === "Named") ||
     world.moon.journal.some((e) => e.event === "Named");
-  const spot: Spotlight = mission !== 0 && !won ? spotlightFor(mission, flags, renamed) : null;
+  const spot: Spotlight =
+    mission !== 0 && !won && !logView ? spotlightFor(mission, flags, renamed) : null;
   const logCount = world.sun.journal.length + world.moon.journal.length;
   const prevLog = useRef(0);
   const logBump = useRef(0);
@@ -1388,7 +1393,7 @@ export function Workshop() {
                   selected={active === "sun"}
                   stretch
                   lit={lit === "sun"}
-                  spot={!logView && active === "sun" ? spot : null}
+                  spot={active === "sun" ? spot : null}
                   busy={busy}
                   pulse={pulse}
                   pending={pending}
@@ -1439,7 +1444,7 @@ export function Workshop() {
                       selected={active === "moon"}
                       stretch
                       lit={lit === "moon"}
-                      spot={!logView && active === "moon" ? spot : null}
+                      spot={active === "moon" ? spot : null}
                       busy={busy}
                       pulse={pulse}
                       pending={pending}
@@ -1475,7 +1480,7 @@ export function Workshop() {
                       }}
                       className={cn(
                         "relative h-11 w-full px-1 text-xs",
-                        spot === "hatch" && sp === "pip" && !logView && "guide-spot",
+                        spot === "hatch" && sp === "pip" && "guide-spot",
                       )}
                     >
                       {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
@@ -1491,7 +1496,7 @@ export function Workshop() {
                         pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }}
                         alt={sp}
                       />
-                      {spot === "hatch" && sp === "pip" && !logView ? (
+                      {spot === "hatch" && sp === "pip" ? (
                         <span className="guide-tip" aria-hidden>
                           {t("guide.tap")}
                         </span>

@@ -24,7 +24,7 @@ Pip, Nub, and Bean are waiting.
 
 ## If you peek at the journal
 
-The isles are a beginner tutorial for [Effect](https://effect.website) **EventLog**. The app itself is not written in Effect — play acts out whether something is allowed, and whether it gets written down.
+The isles are a beginner tutorial for [Effect](https://effect.website) **EventLog**, written with Effect RC EventLog + Atom. Play acts out whether something is allowed, and whether it gets written down.
 
 A write only lands if the handler said yes:
 

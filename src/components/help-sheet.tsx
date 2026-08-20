@@ -301,7 +301,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
       </div>
       <div
         ref={bodyRef}
-        className="no-scrollbar relative z-10 mt-2.5 min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain pb-1"
+        className="no-scrollbar relative z-10 mt-2.5 min-h-0 flex-1 space-y-2.5 overflow-x-hidden overflow-y-auto overscroll-y-contain touch-pan-y pb-1"
       >
         {tab === "effect" ? (
           <>

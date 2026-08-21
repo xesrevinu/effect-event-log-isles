@@ -3,10 +3,10 @@
 [Come raise something](https://effect-event-log.grok.me) · 中 / EN
 
 Two little isles, waiting for someone to raise.
-Sun Isle on one side, Moon Isle on the other. Put one on, then watch it eat, play, and sleep.
+Sun Isle and Moon Isle. Raise two, go online and rename, then drop the server once.
 
 两座小岛，等你养点什么。
-一边太阳岛，一边月亮岛。点一只上去，看着它吃、玩、睡。
+太阳岛、月亮岛。先养两只，再连上改名，然后关一次服务器。
 
 ![EventLog Isles](public/og.jpg)
 
@@ -18,7 +18,7 @@ Ray made this so he could walk his wife through a tricky idea. He only meant a l
 
 Open [effect-event-log.grok.me](https://effect-event-log.grok.me). Language follows the browser, or tap the chip to switch.
 
-Six little missions, then the isles are yours: hatch, feed, play, sleep, sail to the other island, or let a storm blow through.
+Three little missions, then the isles are yours: hatch two kinds, go online and rename, drop the server and write while it's down.
 
 Pip, Nub, and Bean are waiting.
 
@@ -30,6 +30,6 @@ A write only lands if the handler said yes:
 
 `client` → `EventGroup` → **handler first** → `EventJournal` appends.
 
-Storms wipe the picture, not the book. Replay grows everyone back. The ferry sends events, not a copied island. Same critter, two names: both sides count.
+Storms wipe the picture, not the book. Replay grows everyone back. Go online and a rename lands on both isles. Turn the server off: you can still write; turn it back on and the other isle catches up.
 
 Made by [Ray](https://x.com/xesrevinu) and Grok.

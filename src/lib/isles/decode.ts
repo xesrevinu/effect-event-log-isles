@@ -2,7 +2,6 @@ import { Effect, Schema } from "effect";
 import type * as EventJournal from "effect/unstable/eventlog/EventJournal";
 import {
   applyEvent,
-  replay,
   type Critter,
   type Entry,
   type EventTag,
@@ -12,7 +11,7 @@ import { CritterEvents } from "@/lib/isles/events";
 
 export type ViewEntry = Entry;
 
-export const decodePayload = (entry: EventJournal.Entry): Effect.Effect<Record<string, unknown>> =>
+const decodePayload = (entry: EventJournal.Entry): Effect.Effect<Record<string, unknown>> =>
   Effect.gen(function* () {
     const def = CritterEvents.events[entry.event];
     if (!def) return { id: entry.primaryKey };
@@ -57,6 +56,3 @@ export const replayJournal = (
     }
     return projection;
   });
-
-export const replayView = (entries: readonly ViewEntry[]): Record<string, Critter> =>
-  replay(entries);

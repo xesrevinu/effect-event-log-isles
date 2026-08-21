@@ -16,7 +16,7 @@ const petSheetLinks = allPetIdleSheetUrls().map((href) => ({
 
 const APP_NAME = "EventLog Isles";
 const APP_DESC =
-  "Two little isles, waiting for someone to raise. Put one on, then watch it eat, play, and sleep.";
+  "Two little isles, waiting for someone to raise. Hatch two, go online and rename, then drop the server once.";
 const AUTHOR = "Ray";
 const AUTHOR_X = "https://x.com/xesrevinu";
 const AUTHOR_HANDLE = "@xesrevinu";

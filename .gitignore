@@ -10,3 +10,7 @@ vendor/
 .oxlintcache
 *.tsbuildinfo
 .zed/
+.vercel/
+.output/
+.nitro/
+dist/

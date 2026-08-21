@@ -7,8 +7,6 @@ export class Hungry extends Schema.TaggedError<Hungry>()("Hungry", {}) {}
 export class Sleepy extends Schema.TaggedError<Sleepy>()("Sleepy", {}) {}
 export class EmptyName extends Schema.TaggedError<EmptyName>()("EmptyName", {}) {}
 
-export type CritterHandlerError = IsleFull | MissingPet | Stuffed | Hungry | Sleepy | EmptyName;
-
 const TAG_TO_CODE: Record<string, string> = {
   IsleFull: "full",
   MissingPet: "missing",

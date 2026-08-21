@@ -29,11 +29,8 @@ primaryKey: (p) => p.id`,
 
 const BEATS: { k: MessageKey; v: MessageKey; code?: string }[] = [
   { k: "help.1.k", v: "help.1.v", code: `client("Hatched", { species: "pip" })` },
-  { k: "help.2.k", v: "help.2.v" },
+  { k: "help.2.k", v: "help.2.v", code: `primaryKey: (p) => p.id` },
   { k: "help.3.k", v: "help.3.v" },
-  { k: "help.4.k", v: "help.4.v" },
-  { k: "help.5.k", v: "help.5.v", code: `primaryKey: (p) => p.id` },
-  { k: "help.6.k", v: "help.6.v" },
 ];
 
 function EffectMark() {

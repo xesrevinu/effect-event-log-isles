@@ -13,7 +13,7 @@ export class IsleProjection extends Context.Service<
   }
 >()("isles/IsleProjection") {}
 
-export const layerProjection = Layer.effect(
+const layerProjection = Layer.effect(
   IsleProjection,
   EventJournal.EventJournal.use((journal) =>
     Effect.succeed({

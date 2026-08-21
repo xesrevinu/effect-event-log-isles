@@ -460,5 +460,3 @@ export const RECIPES = {
 export function isSoundName(value: unknown) {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(RECIPES, value);
 }
-/** All available sound names, derived from the recipe palette. */
-export const sounds = Object.keys(RECIPES);

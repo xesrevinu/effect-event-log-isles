@@ -3,24 +3,24 @@ import * as EventGroup from "effect/unstable/eventlog/EventGroup";
 import * as EventLog from "effect/unstable/eventlog/EventLog";
 import { EmptyName, Hungry, IsleFull, MissingPet, Sleepy, Stuffed } from "@/lib/isles/errors";
 
-export const SpeciesSchema = Schema.Literals(["pip", "nub", "bean"]);
+const SpeciesSchema = Schema.Literals(["pip", "nub", "bean"]);
 
-export const CritterId = Schema.Struct({
+const CritterId = Schema.Struct({
   id: Schema.String,
 });
 
-export const HatchedPayload = Schema.Struct({
+const HatchedPayload = Schema.Struct({
   id: Schema.String,
   species: SpeciesSchema,
   name: Schema.String,
 });
 
-export const NamedPayload = Schema.Struct({
+const NamedPayload = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
 });
 
-export const SnapshotPayload = Schema.Struct({
+const SnapshotPayload = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   species: SpeciesSchema,

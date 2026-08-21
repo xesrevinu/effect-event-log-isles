@@ -29,7 +29,7 @@ export type ClipSpec = {
 export type PetsManifest = Partial<Record<Species, Partial<Record<PetClipId, ClipSpec>>>>;
 
 const CLIPS = new Set<PetClipId>(PET_CLIPS);
-export const PET_SPECIES = ["pip", "nub", "bean"] as const satisfies readonly Species[];
+const PET_SPECIES = ["pip", "nub", "bean"] as const satisfies readonly Species[];
 const SPECIES = new Set<Species>(PET_SPECIES);
 
 export function frameIndex(elapsedMs: number, fps: number, count: number, loop: boolean) {
@@ -81,11 +81,6 @@ export type PetSheet = { source: CanvasImageSource; width: number; height: numbe
 const decodedSheets = new Map<string, PetSheet>();
 const decodingSheets = new Map<string, Promise<PetSheet>>();
 
-export function resetPetSheetCache() {
-  decodedSheets.clear();
-  decodingSheets.clear();
-}
-
 export function peekPetSheet(src: string) {
   return decodedSheets.get(src);
 }
@@ -103,7 +98,7 @@ export function releasePetSheet(src: string) {
  * whole sheet is downscaled ONCE here, so per-frame draws stay ~1:1 and a 2x
  * desktop keeps less than half the bitmap memory in the cache.
  */
-export function sheetMemoryScale(dpr: number, cell = SPRITE_SHEET_CELL) {
+function sheetMemoryScale(dpr: number, cell = SPRITE_SHEET_CELL) {
   const dest = spriteDestSize(SPRITE_HATCH_CSS, dpr);
   const ratio = dest / cell;
   return ratio >= 0.95 ? 1 : Math.max(0.2, ratio);
@@ -168,7 +163,7 @@ export function sheetCell(index: number, cols: number) {
 }
 
 /** Sheets already leave jump headroom; only a light inset at draw time. */
-export const SPRITE_DRAW_SCALE = 0.92;
+const SPRITE_DRAW_SCALE = 0.92;
 /** CSS box multiplier. Must size the canvas to this box — do not CSS-scale the bitmap. */
 export const SPRITE_VIEW_SCALE = 1.5;
 /** Hatch dock layout box (4.5rem). Peak display size on iPhone. */
@@ -195,7 +190,7 @@ export function spriteDestSize(
   return backing * s;
 }
 
-export function asClipWindow(raw: unknown): ClipWindow | undefined {
+function asClipWindow(raw: unknown): ClipWindow | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const rec = raw as Record<string, unknown>;
   const sx = Number(rec.sx);
@@ -338,9 +333,9 @@ export function clipForEvent(event?: EventTag): PetClipId {
   return "idle";
 }
 
-export const ROAM_CLIPS = ["eat", "play", "sleep"] as const;
+const ROAM_CLIPS = ["eat", "play", "sleep"] as const;
 
-export function unitRoll(roll: number) {
+function unitRoll(roll: number) {
   const n = Number.isFinite(roll) ? roll : 0;
   return ((n % 1) + 1) % 1;
 }
@@ -405,10 +400,6 @@ export function clipVideo(species: Species, clip: PetClipId, spec: ClipSpec) {
   return spec.video || `/pets/${species}/${clip}.mp4`;
 }
 
-export function clipPoster(species: Species, clip: PetClipId) {
-  return `/pets/${species}/${clip}.jpg`;
-}
-
 export function parsePetsManifest(raw: unknown): PetsManifest | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const out: PetsManifest = {};
@@ -426,10 +417,6 @@ export function parsePetsManifest(raw: unknown): PetsManifest | null {
 }
 
 let cached: Promise<PetsManifest | null> | undefined;
-
-export function resetPetsManifestCache() {
-  cached = undefined;
-}
 
 export function loadPetsManifest(): Promise<PetsManifest | null> {
   if (typeof fetch !== "function") return Promise.resolve(null);

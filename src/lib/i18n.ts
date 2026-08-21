@@ -34,22 +34,6 @@ export function localeFromAcceptLanguage(header: string | null | undefined): Loc
   return null;
 }
 
-export function detectBrowserLocale(): Locale {
-  if (typeof navigator === "undefined") return "en";
-  const langs = [navigator.language, ...(navigator.languages ?? [])];
-  return localeFromAcceptLanguage(langs.join(",")) ?? "en";
-}
-
-export function readCookieLocale(): Locale | null {
-  if (typeof document === "undefined") return null;
-  const parts = document.cookie.split(";");
-  for (const part of parts) {
-    const [key, ...rest] = part.trim().split("=");
-    if (key === STORAGE_KEY) return parseLocale(decodeURIComponent(rest.join("=")));
-  }
-  return null;
-}
-
 export function readStoredLocale(): Locale | null {
   try {
     return parseLocale(localStorage.getItem(STORAGE_KEY));
@@ -57,10 +41,6 @@ export function readStoredLocale(): Locale | null {
     /* private */
   }
   return null;
-}
-
-export function localeFromClient(): Locale {
-  return readStoredLocale() ?? readCookieLocale() ?? detectBrowserLocale();
 }
 
 export function writeStoredLocale(locale: Locale) {
@@ -74,7 +54,7 @@ export function writeStoredLocale(locale: Locale) {
   document.cookie = `${STORAGE_KEY}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
 }
 
-export function interpolate(template: string, params?: Record<string, string | number>) {
+function interpolate(template: string, params?: Record<string, string | number>) {
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_, key: string) =>
     params[key] === undefined ? `{${key}}` : String(params[key]),
@@ -85,7 +65,7 @@ const zh = {
   "lang.label": "语言",
   "boot.go": "开始养",
   "boot.title": "两座小岛，等你养点什么",
-  "boot.body": "一边太阳岛，一边月亮岛。点一只上去，看着它吃、玩、睡。",
+  "boot.body": "太阳岛、月亮岛。先养两只，再连上改名，然后关一次服务器。",
   "boot.credit": "由 Ray 和 {grok} Grok 制作",
   "boot.github": "开源仓库",
   "boot.made":
@@ -102,56 +82,59 @@ const zh = {
   "boot.chip.ashore": "上岛啦",
   "log.all": "全部事件",
 
-  "ms.1.title": "孵一颗蛋",
-  "ms.1.hint": "点下面一只小生物，放到太阳岛上。",
-  "ms.1.win": "孵化会写成一条事件。岛上多了一只，账本里多了一条。",
+  "ms.1.title": "先在太阳岛养两只",
+  "ms.1.hint": "放到岛上，喂到撑，再放一只别的，然后风暴、回放。",
+  "ms.1.win": "写进账本的才算发生。撑了 handler 会拒绝；风暴清的是画面，回放两只都会长回来。",
 
-  "ms.2.title": "喂到撑",
-  "ms.2.hint": "对着它连续点「喂」。肚子满了，handler 会拒绝。",
-  "ms.2.win": "handler 说不。账本没写。这件事等于没发生。",
+  "ms.2.title": "连上再改名",
+  "ms.2.hint": "把两座岛都点成在线，再改个名字。对岸会一起变。",
+  "ms.2.win": "两边都连着服务器时，改名会自己同步过去。",
 
-  "ms.3.title": "风暴来了",
-  "ms.3.hint": "点岛上的风暴，小生物会消失。再点回放，它们会按账本长回来。",
-  "ms.3.win": "清掉的只是投影。账本还记得谁住在这儿。",
-
-  "ms.4.title": "坐船过去",
-  "ms.4.hint": "点「去月亮岛」，月亮岛会收到同一只。",
-  "ms.4.win": "渡过去的是事件，不是把整座岛复制一份。",
-
-  "ms.5.title": "两边起名",
-  "ms.5.hint": "点它的名字，两边改成不一样的，再渡一次。",
-  "ms.5.win": "同一个 primaryKey，两边各自写下了不同的事件。",
-
-  "ms.6.title": "折成一条",
-  "ms.6.hint": "多玩几次让账本变长，再点压缩：渡船把快照送到对岸。这边账本不会被改写。",
-  "ms.6.win": "对岸收到快照。这座岛的账本仍是只追加的。",
+  "ms.3.title": "服务器挂了",
+  "ms.3.hint": "关掉服务器，玩一下，再打开。",
+  "ms.3.win": "服务器不在，岛上仍能写。连回来，对岸会追上。",
 
   "ms.free.title": "接下来随便玩",
-  "ms.free.hint": "喂、玩、睡、改名、放生。也可以再让两边对不上。",
+  "ms.free.hint": "喂、玩、睡、改名、放生。也可以把岛点离线，或者再关一次服务器。",
 
   "hud.next": "下一关",
   "hud.free": "自由玩",
   "hud.again": "再来一局",
-  "hud.step": "{n}/6",
+  "hud.step": "{n}/3",
   "guide.tap": "点这里",
+  "guide.hatch": "放到岛上",
+  "guide.feed": "喂到撑",
+  "guide.play": "玩一下",
+  "guide.storm": "吹走",
+  "guide.replay": "长回来",
+  "guide.ferry": "点成在线",
   "guide.rename": "改名字",
+  "guide.fold": "账本只追加",
+  "guide.online": "点成在线",
+  "guide.server": "开关服务器",
+  "guide.offline": "先掉线",
 
   "isle.sun": "太阳岛",
   "isle.moon": "月亮岛",
-  "isle.locked": "船还没到",
+  "isle.locked": "月亮岛还没开",
   "isle.empty": "还没有小生物",
   "isle.full": "住满了",
   "isle.storm": "风暴",
   "isle.replay": "回放",
-  "isle.fold": "压缩",
+  "isle.fold": "账本",
   "isle.vault": "账本",
 
   "act.feed": "喂",
   "act.play": "玩",
   "act.sleep": "睡",
   "act.release": "放生",
-  "act.ferry": "去月亮岛",
-  "act.ferryBack": "回太阳岛",
+  "act.ferry": "点成在线",
+  "act.ferryBack": "留在这座岛",
+  "isle.online": "在线",
+  "isle.offline": "离线",
+  "isle.unreachable": "连不上",
+  "net.server": "服务器",
+  "net.serverDown": "服务器挂了",
   "log.append": "只能追加，不能改已经写下的事件",
   "log.empty": "还没有事件。只有写入成功，才会记下来。",
   "log.ghost": "没有进账本",
@@ -178,9 +161,14 @@ const zh = {
   "cap.no": "{why}",
   "cap.sync": "同步过去 {n} 条",
   "cap.syncEmpty": "两边已经对齐。",
+  "cap.online": "{isle} 连上了。落下的进度会自动补回来。",
+  "cap.offline": "{isle} 掉线了。新事件先记在本机。",
+  "cap.serverUp": "服务器开了。在线的岛会重新连上。",
+  "cap.serverDown": "服务器挂了。两边都连不上，事件先记在本机。",
+  "cap.unreachable": "服务器挂了，{isle} 连不上。开起来就会自动追上。",
   "cap.storm": "岛被吹空了，账本还在。",
   "cap.replay": "正按账本一只只长回来。",
-  "cap.fold": "对岸收到快照。这边账本仍是只追加的。",
+  "cap.fold": "账本只追加。已经写下的一行都不会改。",
   "cap.conflict": "同一只，两边都改过。",
 
   "forge.1": "client",
@@ -201,7 +189,7 @@ const zh = {
     "三个空位：成功、失败、需要什么。失败也有名字，不会被悄悄吃掉。喂撑了、岛住满了，都是这种「说不」。",
   "help.fx.3.k": "这岛在教什么",
   "help.fx.3.v":
-    "这座岛就是用 Effect EventLog 写的。handler 先说行不行，行了才记进 IndexedDB 账本。Atom 把账本绑到岛上。",
+    "这座岛就是用 Effect EventLog 写的。handler 先说行不行，行了才记进账本。刷新就是新的一局。Atom 把账本绑到岛上。",
   "help.ray.k": "本来只想讲给她听",
   "help.ray.v":
     "Ray 做这座岛，是为了跟老婆把 Effect 讲明白。本来只想简单抛光一下，不小心做得太好，变成了你现在玩的这个。还想看他再做更多好玩的？去推特催更。",
@@ -231,18 +219,12 @@ const zh = {
   "help.path.3.ok": "问过了，才记进账本。这件事才算发生过。",
   "help.path.3.no": "账本纹丝不动。那口粮等于没喂。",
   "help.beats": "同一条规则，岛上还会这样",
-  "help.1.k": "孵化",
-  "help.1.v": "点一只，岛上多一只，账本多一条。",
-  "help.2.k": "喂撑",
-  "help.2.v": "肚子满了就说不。账本不写，所以那口粮等于没喂。",
-  "help.3.k": "风暴 / 回放",
-  "help.3.v": "风暴清的是画面。账本还在，再折一遍就长回来。",
-  "help.4.k": "渡船",
-  "help.4.v": "船送的是已经写下的事，不是整座岛。",
-  "help.5.k": "两个名字",
-  "help.5.v": "同一把钥匙，两边各记一笔。两边都算数，不是谁盖掉谁。",
-  "help.6.k": "压缩",
-  "help.6.v": "一长串可以折成一张近照。账本变短，折出来还是它。",
+  "help.1.k": "本地账本",
+  "help.1.v": "写入、拒绝、风暴、回放：写进账本的才算发生，画面只是读出来的样子。",
+  "help.2.k": "在线",
+  "help.2.v": "两座岛都连着服务器时，改名会自己同步过去。钥匙仍是同一个 id。",
+  "help.3.k": "服务器",
+  "help.3.v": "服务器挂了，岛上仍能写。连回来，对岸会追上。",
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -250,7 +232,7 @@ const en: Record<keyof typeof zh, string> = {
   "boot.go": "Start playing",
   "boot.title": "Two little isles, waiting for someone to raise.",
   "boot.body":
-    "Sun Isle on one side, Moon Isle on the other. Put one on, then watch it eat, play, and sleep.",
+    "Sun Isle and Moon Isle. Raise two, go online and rename, then drop the server once.",
   "boot.credit": "Made by Ray and {grok} Grok",
   "boot.github": "Open source",
   "boot.made":
@@ -268,57 +250,62 @@ const en: Record<keyof typeof zh, string> = {
   "boot.chip.ashore": "Ashore!",
   "log.all": "All events",
 
-  "ms.1.title": "Hatch an egg",
-  "ms.1.hint": "Tap a critter below to place it on Sun Isle.",
-  "ms.1.win": "A hatch is an event. One critter on the isle, one entry in the journal.",
+  "ms.1.title": "Raise two on Sun Isle",
+  "ms.1.hint": "Put one on the isle, feed it full, put a different one on, then Storm and Replay.",
+  "ms.1.win":
+    "Only journal writes happened. A stuffed feed is refused; storm clears the picture; replay grows both back.",
 
-  "ms.2.title": "Feed it full",
-  "ms.2.hint": "Keep tapping Feed. When it's full, the handler refuses.",
-  "ms.2.win": "The handler said no. Nothing was written. It never happened.",
+  "ms.2.title": "Go online, then rename",
+  "ms.2.hint": "Put both isles online, then rename one. The other side changes too.",
+  "ms.2.win": "When both are on the server, a rename merges by itself.",
 
-  "ms.3.title": "A storm hits",
-  "ms.3.hint": "Tap wipe — they vanish. Tap replay — they grow back from the journal.",
-  "ms.3.win": "You only cleared the projection. The journal still remembers who lives here.",
-
-  "ms.4.title": "Cross the water",
-  "ms.4.hint": "Tap “To Moon Isle”. Moon Isle receives the same critter.",
-  "ms.4.win": "You synced events, not a copy of the island.",
-
-  "ms.5.title": "Two names",
-  "ms.5.hint": "Tap the name, call it something different on each isle, then sail again.",
-  "ms.5.win": "Same primaryKey — each side wrote a different entry.",
-
-  "ms.6.title": "Fold the history",
-  "ms.6.hint":
-    "Play a few times so the book grows, then tap compact. The ferry sends a snapshot; this isle’s journal stays append-only.",
-  "ms.6.win": "The other isle got a snapshot. This book is still append-only.",
+  "ms.3.title": "The server drops",
+  "ms.3.hint": "Turn the server off, play, then turn it back on.",
+  "ms.3.win":
+    "The isle can still write while the server is down. Coming back, the other side catches up.",
 
   "ms.free.title": "The isles are yours",
-  "ms.free.hint": "Feed, play, sleep, rename, release. Or split the two sides again.",
+  "ms.free.hint":
+    "Feed, play, sleep, rename, release. Or take an isle offline, or drop the server again.",
 
   "hud.next": "Next",
   "hud.free": "Free play",
   "hud.again": "Play again",
-  "hud.step": "{n}/6",
+  "hud.step": "{n}/3",
   "guide.tap": "Tap here",
+  "guide.hatch": "Put it on the isle",
+  "guide.feed": "Feed it full",
+  "guide.play": "Play",
+  "guide.storm": "Blow them away",
+  "guide.replay": "Grow them back",
+  "guide.ferry": "Go online",
   "guide.rename": "Rename",
+  "guide.fold": "The journal only appends",
+  "guide.online": "Go online",
+  "guide.server": "Toggle the server",
+  "guide.offline": "Go offline",
 
   "isle.sun": "Sun Isle",
   "isle.moon": "Moon Isle",
-  "isle.locked": "No boat yet",
+  "isle.locked": "Moon Isle isn't open yet",
   "isle.empty": "No critters yet",
   "isle.full": "Full",
   "isle.storm": "Storm",
   "isle.replay": "Replay",
-  "isle.fold": "Compact",
+  "isle.fold": "Journal",
   "isle.vault": "Journal",
 
   "act.feed": "Feed",
   "act.play": "Play",
   "act.sleep": "Sleep",
   "act.release": "Release",
-  "act.ferry": "To Moon Isle",
-  "act.ferryBack": "Back to Sun",
+  "act.ferry": "Go online",
+  "act.ferryBack": "Stay on this isle",
+  "isle.online": "Online",
+  "isle.offline": "Offline",
+  "isle.unreachable": "No server",
+  "net.server": "Server",
+  "net.serverDown": "Server down",
   "log.append": "Append-only — existing entries never change",
   "log.empty": "No events yet. Only a successful write is recorded.",
   "log.ghost": "not in the journal",
@@ -345,9 +332,14 @@ const en: Record<keyof typeof zh, string> = {
   "cap.no": "{why}",
   "cap.sync": "Synced {n} events",
   "cap.syncEmpty": "Already in sync.",
+  "cap.online": "{isle} is online. It will catch up anything it missed.",
+  "cap.offline": "{isle} dropped offline. New events stay on this device.",
+  "cap.serverUp": "Server is up. Online isles will reconnect.",
+  "cap.serverDown": "Server is down. Both isles write locally.",
+  "cap.unreachable": "Server is down, so {isle} can't connect. Turn it back on to catch up.",
   "cap.storm": "Isle cleared. The journal remains.",
   "cap.replay": "Growing them back from the journal.",
-  "cap.fold": "The other isle got a snapshot. This book is still append-only.",
+  "cap.fold": "The journal only appends. Existing lines never change.",
   "cap.conflict": "Same critter, both sides wrote.",
 
   "forge.1": "client",
@@ -369,7 +361,7 @@ const en: Record<keyof typeof zh, string> = {
     "Three slots: success, error, and what it needs. Failures have names — they are not swallowed. Stuffed, isle-full: those are a typed “no”.",
   "help.fx.3.k": "What this isle is for",
   "help.fx.3.v":
-    "This isle is written with Effect EventLog. The handler decides first; only a yes is committed to the IndexedDB journal. Atom binds that journal to the view.",
+    "This isle is written with Effect EventLog. The handler decides first; only a yes is committed to the journal. A refresh is a new run. Atom binds that journal to the view.",
   "help.ray.k": "Built to explain it to her",
   "help.ray.v":
     "Ray made this isle so he could walk his wife through Effect. He only meant a light polish, then accidentally made it too good — and it became the game you’re playing. Want more fun like this? Go poke him on X.",
@@ -399,21 +391,18 @@ const en: Record<keyof typeof zh, string> = {
   "help.path.3.ok": "Only then is it written down. Now it happened.",
   "help.path.3.no": "The journal stays put. That feed never happened.",
   "help.beats": "Same rule, later on the isles",
-  "help.1.k": "Hatch",
-  "help.1.v": "Tap a critter: one on the isle, one line in the journal.",
-  "help.2.k": "Stuffed",
-  "help.2.v": "When it's full, the answer is no. Nothing is written, so that feed never happened.",
-  "help.3.k": "Storm / replay",
-  "help.3.v": "Storm clears the picture. The journal stays. Fold it again, and they come back.",
-  "help.4.k": "Ferry",
-  "help.4.v": "The boat sends things already written, not the island itself.",
-  "help.5.k": "Two names",
-  "help.5.v": "Same key, each side wrote a line. Both count — one does not overwrite the other.",
-  "help.6.k": "Compact",
-  "help.6.v": "A long chain can fold into one snapshot. Shorter journal, same critter.",
+  "help.1.k": "The local journal",
+  "help.1.v":
+    "Write, refuse, storm, replay: only journal writes happened. The picture is just a read.",
+  "help.2.k": "Online",
+  "help.2.v":
+    "When both isles are on the server, a rename merges by itself. The key is still the same id.",
+  "help.3.k": "Server",
+  "help.3.v":
+    "The isle can still write while the server is down. Coming back, the other side catches up.",
 };
 
-export const DICT = { zh, en };
+const DICT = { zh, en };
 export type MessageKey = keyof typeof zh;
 
 export function translate(

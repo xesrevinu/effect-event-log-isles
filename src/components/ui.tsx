@@ -7,7 +7,7 @@ export function Button({
   className,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "quiet" | "sky" | "sun";
+  variant?: "primary" | "quiet" | "sky" | "sun" | "danger";
   size?: "sm" | "md" | "lg";
 }) {
   return (
@@ -24,6 +24,7 @@ export function Button({
         variant === "sky" && "tex-grain border-sky-deep bg-sky text-accent-fg",
         variant === "sun" && "tex-grain border-sun-deep bg-sun text-fg",
         variant === "quiet" && "border-faint bg-inset text-fg",
+        variant === "danger" && "tex-grain border-[#b42323] bg-danger text-accent-fg",
         className,
       )}
       {...props}

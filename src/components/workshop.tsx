@@ -1,18 +1,19 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { RegistryProvider, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react";
-import { Cause, Exit } from "effect";
-import * as AsyncResult from "effect/unstable/reactivity/AsyncResult";
-import { Clapperboard, Smartphone, Sparkles, Undo2, Wind, X } from "lucide-react";
+import { Exit } from "effect";
+import {
+  Clapperboard,
+  Server,
+  ServerOff,
+  Smartphone,
+  Sparkles,
+  Undo2,
+  Wifi,
+  WifiOff,
+  Wind,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   defaultName,
@@ -30,22 +31,29 @@ import {
   type Species,
 } from "@/lib/critter-sim";
 import {
-  destroyAtom,
-  ferryAtom,
+  advanceAtom,
+  busyAtom,
   islesRuntime,
-  moonEntriesAtom,
-  sunEntriesAtom,
+  lessonAtom,
+  moonReplicaAtom,
+  onlineAtom,
+  pickIsleAtom,
+  playheadAtom,
+  progressAtom,
+  replayAtom,
+  resetAtom,
+  scheduleAtomTask,
+  setOnlineAtom,
+  setServerAtom,
+  stormAtom,
+  sunReplicaAtom,
+  tracesAtom,
   writeAtom,
 } from "@/lib/isles/atoms";
-import { viewReplica } from "@/lib/isles/view";
-import {
-  checkMission,
-  emptyFlags,
-  spotlightFor,
-  type Flags,
-  type MissionId,
-  type Spotlight,
-} from "@/lib/missions";
+import { readOnline } from "@/lib/isles/runtime";
+import { traceBeatFailed, traceBeatLabel, type TraceSpan } from "@/lib/isles/trace";
+import { LAST_MISSION, MISSION_IDS, type Spotlight } from "@/lib/missions";
+import { setIslePlayhead } from "@/lib/session";
 import { armAudio, playCue, prefersReducedMotion, sfx, wait } from "@/lib/fx";
 import { useI18n } from "@/lib/i18n-context";
 import type { MessageKey } from "@/lib/i18n";
@@ -66,6 +74,27 @@ function stackContentHeight(stack: HTMLElement) {
         (parseFloat(styles.paddingBottom) || 0),
     ),
   );
+}
+
+function guideCopy(spot: Exclude<Spotlight, null>): MessageKey {
+  switch (spot) {
+    case "hatch":
+      return "guide.hatch";
+    case "feed":
+      return "guide.feed";
+    case "play":
+      return "guide.play";
+    case "storm":
+      return "guide.storm";
+    case "replay":
+      return "guide.replay";
+    case "name":
+      return "guide.rename";
+    case "online":
+      return "guide.online";
+    case "server":
+      return "guide.server";
+  }
 }
 
 function GuideHit({
@@ -116,8 +145,6 @@ function hugIsleHeight(lane: HTMLElement) {
   return Math.round(headerH + slotPad + inner + slotMargin + borderY);
 }
 
-const STEPS = ["client()", "EventGroup", "handler", "journal"] as const;
-
 type Pulse = {
   petId?: string;
   event?: EventTag;
@@ -145,13 +172,13 @@ function StatPips({
 }) {
   const n = Math.max(0, Math.min(max, value));
   const hop = Boolean(pulse);
-  // Idle bounce is pure CSS (pip-breathe); stagger rows so the three stats
-  // don't hop in sync.
+  // Idle pulse is pure CSS (pip-breathe); stagger rows so the three stats
+  // don't shimmer in sync. Keep it smaller than anim-pip (the real hop).
   const breatheBase = kind === "belly" ? 0 : kind === "mood" ? 3100 : 6300;
   return (
     <div
       className={cn(
-        "stat-inlay flex min-w-0 flex-1 items-center justify-center rounded-full px-1.5 py-1.5",
+        "stat-inlay flex min-w-0 w-full items-center justify-center rounded-full px-1.5 py-1.5",
         kind === "belly" && "stat-inlay-belly bg-warn-dim",
         kind === "mood" && "stat-inlay-mood bg-info-dim",
         kind === "energy" && "stat-inlay-energy bg-[#f3e2ff]",
@@ -231,7 +258,29 @@ type Attempt = {
   isle: ReplicaId;
 };
 
+function nextHatchSpecies(pets: Critter[]): Species {
+  const present = new Set(pets.map((pet) => pet.species));
+  return SPECIES.find((sp) => !present.has(sp)) ?? "pip";
+}
+
+function guidePetId(pets: Critter[], focusId: string | null, spot: Spotlight): string | null {
+  if (spot !== "feed" && spot !== "play" && spot !== "name") return null;
+  if (focusId && pets.some((pet) => pet.id === focusId)) return focusId;
+  if (spot === "feed") return pets.find((pet) => pet.belly < MAX_BELLY)?.id ?? pets[0]?.id ?? null;
+  if (spot === "play") {
+    return pets.find((pet) => pet.belly > 0 && pet.energy > 0)?.id ?? pets[0]?.id ?? null;
+  }
+  return pets[0]?.id ?? null;
+}
+
 const CARD_ACTIONS = [
+  {
+    event: "Released" as const,
+    spot: null,
+    icon: "/icons/release.webp",
+    label: "act.release" as const,
+    vibe: "act-release rounded-lg border-[#b42323] bg-[linear-gradient(180deg,#ff8585_0%,#e23b3b_80%)] text-accent-fg",
+  },
   {
     event: "Fed" as const,
     spot: "feed" as const,
@@ -253,13 +302,6 @@ const CARD_ACTIONS = [
     label: "act.sleep" as const,
     vibe: "act-sleep rounded-full border-[#7a4bb5] bg-[linear-gradient(180deg,#e4b8ff_0%,#ce82ff_78%)] text-accent-fg",
   },
-  {
-    event: "Released" as const,
-    spot: null,
-    icon: "/icons/release.webp",
-    label: "act.release" as const,
-    vibe: "act-release rounded-lg border-[#b42323] bg-[linear-gradient(180deg,#ff8585_0%,#e23b3b_80%)] text-accent-fg",
-  },
 ];
 
 /** Memoized: forge-step ticks during an action re-render Workshop ~1/s; cards
@@ -267,17 +309,21 @@ const CARD_ACTIONS = [
 const CritterCard = memo(function CritterCard({
   pet,
   spot,
+  picked,
   busy,
   pulse,
   pending,
   onAct,
+  onPick,
 }: {
   pet: Critter;
   spot: Spotlight;
+  picked: boolean;
   busy: boolean;
   pulse: Pulse | null;
   pending: Pending | null;
   onAct: (event: EventTag, pet: Critter, name?: string) => void;
+  onPick: () => void;
 }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
@@ -290,147 +336,147 @@ const CritterCard = memo(function CritterCard({
 
   return (
     <div
+      onClick={(event) => {
+        event.stopPropagation();
+        onPick();
+      }}
       className={cn(
-        "pet-paper relative z-10 flex shrink-0 flex-col overflow-visible rounded-[16px] px-2 pt-2 pb-1.5",
+        "pet-paper relative z-10 grid shrink-0 grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-1.5 gap-y-1 overflow-visible rounded-[16px] px-2 pt-2 pb-1.5",
+        picked && "ring-[3px] ring-inset ring-accent",
         waiting && "ring-2 ring-inset ring-dashed ring-sky",
         mine && "anim-flash",
         pulse?.petId === pet.id && !pulse.ok && "anim-shake",
       )}
     >
-      <div className="flex items-center gap-1.5">
-        <div className="relative z-50 h-14 w-16 shrink-0 overflow-visible">
-          <div
-            className={cn(
-              "absolute inset-x-0 bottom-0 size-16",
-              !sequenced && mine && (fx === "Played" ? "anim-wiggle" : "anim-pop"),
-            )}
-          >
-            <CritterSprite
-              pet={pet}
-              burst={fx}
-              burstKey={mine ? pulse?.nonce : undefined}
-              alt={pet.name}
+      <div className="absolute top-0 left-10 z-[60] w-max max-w-[5.5rem] -translate-x-1/2 -translate-y-[85%]">
+        <GuideHit on={spot === "name"} label={t("guide.rename")} className="w-full min-w-0">
+          {editing ? (
+            <input
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => {
+                setEditing(false);
+                if (draft.trim() && draft.trim() !== pet.name) onAct("Named", pet, draft.trim());
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+              className={cn(
+                "name-edit name-edit-field h-7 w-[5.5rem] px-2 text-sm font-black text-fg",
+                spot === "name" && "guide-spot",
+              )}
             />
-          </div>
-          {fx === "Fed" || fx === "Played" || fx === "Slept" ? (
-            <img
-              key={pulse?.nonce}
-              src={
-                fx === "Fed"
-                  ? "/icons/feed.webp"
-                  : fx === "Played"
-                    ? "/icons/play.webp"
-                    : "/icons/sleep.webp"
-              }
-              alt=""
-              className="act-burst pointer-events-none absolute -top-3 -right-2 z-20 size-8 object-contain"
-            />
-          ) : null}
-        </div>
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <GuideHit
-            on={spot === "name"}
-            label={t("guide.rename")}
-            className="min-w-0 shrink-0 max-w-[38%]"
-          >
-            {editing ? (
-              <input
-                autoFocus
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={() => {
-                  setEditing(false);
-                  if (draft.trim() && draft.trim() !== pet.name) onAct("Named", pet, draft.trim());
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                }}
-                className={cn(
-                  "name-edit name-edit-field h-8 w-full px-2.5 text-base font-black text-fg",
-                  spot === "name" && "guide-spot",
-                )}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(pet.name);
-                  setEditing(true);
-                }}
-                className={cn(
-                  "name-edit flex max-w-full items-center gap-1 px-2 py-0.5 text-left",
-                  spot === "name" && "guide-spot",
-                )}
-              >
-                <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
-                <span className="name-pencil-sway shrink-0">
-                  <img
-                    src="/icons/pencil.webp"
-                    alt=""
-                    className="name-pencil size-5 object-contain"
-                  />
-                </span>
-              </button>
-            )}
-          </GuideHit>
-          <div className="flex min-w-0 flex-1 gap-1">
-            <StatPips
-              label={t("stat.belly")}
-              value={pet.belly}
-              max={MAX_BELLY}
-              pulse={mine && fx === "Fed"}
-              kind="belly"
-            />
-            <StatPips
-              label={t("stat.mood")}
-              value={pet.mood}
-              max={MAX_MOOD}
-              pulse={mine && fx === "Played"}
-              kind="mood"
-            />
-            <StatPips
-              label={t("stat.energy")}
-              value={pet.energy}
-              max={MAX_ENERGY}
-              pulse={mine && fx === "Slept"}
-              kind="energy"
-            />
-          </div>
-        </div>
-      </div>
-      <div className="mt-1 grid grid-cols-4 gap-1.5">
-        {actions.map((action, actionIndex) => {
-          const guided = Boolean(action.spot && spot === action.spot);
-          return (
-            <GuideHit key={action.event} on={guided} label={t("guide.tap")} className="min-w-0">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onAct(action.event, pet)}
-                aria-label={t(action.label)}
-                className={cn(
-                  "chunk chunk-sm relative flex h-7 w-full items-center justify-center overflow-visible px-0",
-                  action.vibe,
-                  "disabled:cursor-not-allowed disabled:opacity-40",
-                  guided && "guide-spot",
-                  waiting && pending?.event === action.event && "brightness-110",
-                  mine && fx === action.event && "anim-pop",
-                )}
-              >
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(pet.name);
+                setEditing(true);
+              }}
+              className={cn(
+                "name-edit flex max-w-full items-center justify-center gap-0.5 px-2 py-0.5",
+                spot === "name" && "guide-spot",
+              )}
+            >
+              <span className="min-w-0 truncate text-sm font-black">{pet.name}</span>
+              <span className="name-pencil-sway shrink-0">
                 <img
-                  src={action.icon}
+                  src="/icons/pencil.webp"
                   alt=""
-                  className="act-mark pointer-events-none relative z-[2] size-8 object-contain"
-                  style={{
-                    animationDelay: `${actionIndex * 0.37}s`,
-                    animationDuration: `${2.15 + actionIndex * 0.55}s`,
-                  }}
+                  className="name-pencil size-4 object-contain"
                 />
-              </button>
-            </GuideHit>
-          );
-        })}
+              </span>
+            </button>
+          )}
+        </GuideHit>
       </div>
+      <div className="relative z-50 h-14 w-16 overflow-visible">
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-0 size-16",
+            !sequenced && mine && (fx === "Played" ? "anim-wiggle" : "anim-pop"),
+          )}
+        >
+          <CritterSprite
+            pet={pet}
+            burst={fx}
+            burstKey={mine ? pulse?.nonce : undefined}
+            alt={pet.name}
+          />
+        </div>
+        {fx === "Fed" || fx === "Played" || fx === "Slept" ? (
+          <img
+            key={pulse?.nonce}
+            src={
+              fx === "Fed"
+                ? "/icons/feed.webp"
+                : fx === "Played"
+                  ? "/icons/play.webp"
+                  : "/icons/sleep.webp"
+            }
+            alt=""
+            className="act-burst pointer-events-none absolute -top-3 -right-2 z-20 size-8 object-contain"
+          />
+        ) : null}
+      </div>
+      <StatPips
+        label={t("stat.belly")}
+        value={pet.belly}
+        max={MAX_BELLY}
+        pulse={mine && fx === "Fed"}
+        kind="belly"
+      />
+      <StatPips
+        label={t("stat.mood")}
+        value={pet.mood}
+        max={MAX_MOOD}
+        pulse={mine && fx === "Played"}
+        kind="mood"
+      />
+      <StatPips
+        label={t("stat.energy")}
+        value={pet.energy}
+        max={MAX_ENERGY}
+        pulse={mine && fx === "Slept"}
+        kind="energy"
+      />
+      {actions.map((action, actionIndex) => {
+        const guided = Boolean(action.spot && spot === action.spot);
+        return (
+          <GuideHit
+            key={action.event}
+            on={guided}
+            label={action.spot ? t(guideCopy(action.spot)) : t("guide.tap")}
+            className="min-w-0 w-full"
+          >
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onAct(action.event, pet)}
+              aria-label={t(action.label)}
+              className={cn(
+                "chunk chunk-sm relative flex h-7 w-full items-center justify-center overflow-visible px-0",
+                action.vibe,
+                "disabled:cursor-not-allowed disabled:opacity-40",
+                guided && "guide-spot",
+                waiting && pending?.event === action.event && "brightness-110",
+                mine && fx === action.event && "anim-pop",
+              )}
+            >
+              <img
+                src={action.icon}
+                alt=""
+                className="act-mark pointer-events-none relative z-[2] size-8 object-contain"
+                style={{
+                  animationDelay: `${actionIndex * 0.37}s`,
+                  animationDuration: `${2.15 + actionIndex * 0.55}s`,
+                }}
+              />
+            </button>
+          </GuideHit>
+        );
+      })}
     </div>
   );
 });
@@ -447,12 +493,16 @@ const Isle = memo(function Isle({
   busy,
   pulse,
   pending,
+  online,
+  unreachable,
   onAct,
   onStorm,
   onReplay,
-  onFold,
+  onToggleOnline,
   onPick,
+  onFocusPet,
   onOpenLog,
+  focusPetId,
 }: {
   replica: Replica;
   locked: boolean;
@@ -463,17 +513,22 @@ const Isle = memo(function Isle({
   busy: boolean;
   pulse: Pulse | null;
   pending: Pending | null;
+  online: boolean;
+  unreachable: boolean;
   onAct: (event: EventTag, pet: Critter, name?: string) => void;
   onStorm: () => void;
   onReplay: () => void;
-  onFold: () => void;
+  onToggleOnline: () => void;
   onPick: () => void;
+  onFocusPet: (id: string) => void;
   onOpenLog: () => void;
+  focusPetId: string | null;
 }) {
   const { t } = useI18n();
   const pets = herd(replica);
   const sun = replica.id === "sun";
   const packed = pets.length >= MAX_HERD;
+  const guidedId = guidePetId(pets, focusPetId, spot);
   return (
     <section
       onClick={onPick}
@@ -534,6 +589,31 @@ const Isle = memo(function Isle({
         </button>
         {locked ? null : (
           <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <GuideHit
+              on={spot === "online" && !online}
+              label={t("guide.online")}
+              className="shrink-0"
+            >
+              <Button
+                size="sm"
+                variant={online ? "sky" : "quiet"}
+                disabled={busy}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleOnline();
+                }}
+                className={cn("h-7 px-2", spot === "online" && !online && "guide-spot")}
+                aria-pressed={online || unreachable}
+                aria-label={t(
+                  online ? "isle.online" : unreachable ? "isle.unreachable" : "isle.offline",
+                )}
+              >
+                {online ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
+                <span className="text-[10px] font-black">
+                  {t(online ? "isle.online" : unreachable ? "isle.unreachable" : "isle.offline")}
+                </span>
+              </Button>
+            </GuideHit>
             {packed ? (
               <span
                 className={cn(
@@ -544,7 +624,7 @@ const Isle = memo(function Isle({
                 {t("isle.full")}
               </span>
             ) : null}
-            <GuideHit on={spot === "storm"} label={t("guide.tap")} className="shrink-0">
+            <GuideHit on={spot === "storm"} label={t("guide.storm")} className="shrink-0">
               <Button
                 size="sm"
                 variant="quiet"
@@ -560,7 +640,7 @@ const Isle = memo(function Isle({
                 <span className="text-[10px] font-black">{t("isle.storm")}</span>
               </Button>
             </GuideHit>
-            <GuideHit on={spot === "replay"} label={t("guide.tap")} className="shrink-0">
+            <GuideHit on={spot === "replay"} label={t("guide.replay")} className="shrink-0">
               <Button
                 size="sm"
                 variant="quiet"
@@ -576,21 +656,6 @@ const Isle = memo(function Isle({
                 <span className="text-[10px] font-black">{t("isle.replay")}</span>
               </Button>
             </GuideHit>
-            <GuideHit on={spot === "fold"} label={t("guide.tap")} className="shrink-0">
-              <Button
-                size="sm"
-                variant="quiet"
-                disabled={busy || replica.journal.length < 2}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onFold();
-                }}
-                className={cn("h-7 px-2", spot === "fold" && "guide-spot")}
-                aria-label={t("isle.fold")}
-              >
-                <span className="text-[10px] font-black">{t("isle.fold")}</span>
-              </Button>
-            </GuideHit>
           </div>
         )}
       </div>
@@ -600,9 +665,9 @@ const Isle = memo(function Isle({
           locked || pets.length === 0
             ? cn("items-center justify-center", stretch && "min-h-24 flex-1")
             : cn(
-                "no-scrollbar gap-2 px-2 py-2",
+                "no-scrollbar gap-7 px-2 pt-8 pb-2",
                 stretch
-                  ? "min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+                  ? "min-h-0 flex-1 overflow-x-clip overflow-y-auto overscroll-contain"
                   : "overflow-visible",
               ),
         )}
@@ -612,15 +677,17 @@ const Isle = memo(function Isle({
         ) : pets.length === 0 ? (
           <p className="text-sm font-extrabold text-subtle">{t("isle.empty")}</p>
         ) : (
-          pets.map((pet, i) => (
+          pets.map((pet) => (
             <CritterCard
               key={pet.id}
               pet={pet}
-              spot={i === 0 ? spot : null}
+              spot={pet.id === guidedId ? spot : null}
+              picked={pet.id === focusPetId}
               busy={busy}
               pulse={pulse && pulse.petId === pet.id ? pulse : null}
               pending={pending && pending.petId === pet.id ? pending : null}
               onAct={onAct}
+              onPick={() => onFocusPet(pet.id)}
             />
           ))
         )}
@@ -629,99 +696,59 @@ const Isle = memo(function Isle({
   );
 });
 
-function TimelineBar({ forge, failing }: { forge: number; failing: boolean }) {
-  const { t } = useI18n();
-  const running = forge >= 0;
+const TRACE_BEATS = 12;
+
+function tracesOf(value: unknown): TraceSpan[] {
+  if (Array.isArray(value)) return value as TraceSpan[];
+  if (value && typeof value === "object" && "_tag" in value) {
+    const tagged = value as { _tag: string; value?: unknown };
+    if (tagged._tag === "Success" && Array.isArray(tagged.value))
+      return tagged.value as TraceSpan[];
+  }
+  return [];
+}
+
+function TraceStrip({ spans }: { spans: TraceSpan[] }) {
+  const beats = spans.slice(-TRACE_BEATS);
   return (
-    <ol className="flex shrink-0 items-center gap-0 px-0.5 py-1.5" aria-label="EventLog">
-      {STEPS.map((label, i) => {
-        const on = forge === i;
-        const done = forge > i && !(failing && i >= 2);
-        const dead = failing && i === 2;
-        const locked = failing && i === 3;
-        const lit = running && forge >= i && !locked;
-        return (
-          <li key={label} className="flex min-w-0 flex-1 items-center">
-            {i > 0 ? (
+    <div className="trace-ecg" aria-label="trace">
+      <span className="trace-ecg-line" aria-hidden />
+      <ol className="trace-ecg-beats">
+        {beats.map((span, index) => {
+          const live = span.status === "Started";
+          const dead = traceBeatFailed(span);
+          return (
+            <li key={span.spanId} className="trace-ecg-beat">
+              {index > 0 ? <span className="trace-ecg-pipe" aria-hidden /> : null}
               <span
                 className={cn(
-                  "relative mx-0.5 h-[3px] w-2 shrink-0 overflow-hidden rounded-full sm:mx-1 sm:w-2.5",
-                  lit && !dead ? "bg-accent" : dead && i === 2 ? "bg-danger" : "bg-faint",
+                  "forge-chip trace-ecg-chip truncate px-1 py-0.5 text-center text-[9px] font-black leading-none tracking-tight",
+                  dead && "anim-shake trace-ecg-chip-dead",
+                  live && !dead && "anim-pipe-live trace-ecg-chip-on",
+                  !live && !dead && "trace-ecg-chip-done",
                 )}
               >
-                {on ? (
-                  <span className="anim-pipe-run absolute inset-y-0 left-0 w-full bg-gradient-to-r from-transparent via-white to-transparent" />
-                ) : null}
+                {traceBeatLabel(span)}
               </span>
-            ) : null}
-            <span
-              aria-current={on ? "step" : undefined}
-              className={cn(
-                "forge-chip min-w-0 flex-1 truncate px-1 py-[5px] text-center text-[10px] font-black leading-none tracking-tight sm:text-[11px]",
-                dead && "anim-shake forge-chip-dead",
-                locked && "forge-chip-locked",
-                on && !dead && "anim-pipe-live forge-chip-on",
-                done && !on && "forge-chip-done",
-                !running && "forge-chip-idle",
-                running && !on && !done && !dead && !locked && "forge-chip-idle",
-              )}
-            >
-              {t(`forge.${i + 1}` as MessageKey)}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+            </li>
+          );
+        })}
+        <li className="trace-ecg-now" aria-hidden />
+      </ol>
+    </div>
   );
 }
 
-function ForgeToast({
-  show,
-  failing,
-  forge,
-  text,
-}: {
-  show: boolean;
-  failing: boolean;
-  forge: number;
-  text: string;
-}) {
-  const [paint, setPaint] = useState(show);
-  const [leaving, setLeaving] = useState(false);
-  useEffect(() => {
-    if (show) {
-      setPaint(true);
-      setLeaving(false);
-      return;
-    }
-    if (!paint) return;
-    setLeaving(true);
-    const id = window.setTimeout(() => {
-      setPaint(false);
-      setLeaving(false);
-    }, 240);
-    return () => window.clearTimeout(id);
-  }, [show, paint]);
-  if (!paint) return null;
+function ForgeToast({ spans }: { spans: TraceSpan[] }) {
+  const failing = spans.at(-1) ? traceBeatFailed(spans.at(-1)!) : false;
   return (
-    <div
-      className={cn(
-        "pointer-events-none absolute inset-x-2 bottom-[5.75rem] z-[60] sm:inset-x-3",
-        leaving ? "anim-toast-out" : "anim-toast-in",
-      )}
-    >
+    <div className="min-w-0 flex-1">
       <div className={cn("forge-plaque", failing && "is-fail")}>
         <div className="forge-plaque-inner">
-          <TimelineBar forge={forge} failing={failing} />
-          <p
-            key={text}
-            className={cn(
-              "anim-copy px-1.5 pt-0.5 text-[14px] font-black leading-snug sm:text-[15px]",
-              failing ? "text-danger" : "text-fg",
-            )}
-          >
-            {text}
-          </p>
+          <span className="trace-kicker" aria-hidden>
+            trace
+          </span>
+          <TraceStrip spans={spans} />
         </div>
       </div>
     </div>
@@ -819,11 +846,6 @@ function EventsDialog({
               <p className="break-all font-mono text-[11px] font-bold text-fg/70">
                 {payloadLine(attempt.payload)}
               </p>
-              {attempt.detail ? (
-                <p className="mt-1 break-all font-mono text-[10px] font-bold text-danger/80">
-                  {attempt.detail}
-                </p>
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -887,7 +909,7 @@ function GithubMark({ className }: { className?: string }) {
 
 export function Workshop() {
   return (
-    <RegistryProvider>
+    <RegistryProvider scheduleTask={scheduleAtomTask}>
       <WorkshopApp />
     </RegistryProvider>
   );
@@ -897,54 +919,50 @@ function WorkshopApp() {
   const { t } = useI18n();
   const { setNext, setLog, setSplash } = useHud();
   useAtomMount(islesRuntime);
-  const sunRows = AsyncResult.getOrElse(useAtomValue(sunEntriesAtom), () => []);
-  const moonRows = AsyncResult.getOrElse(useAtomValue(moonEntriesAtom), () => []);
+  const sun = useAtomValue(sunReplicaAtom);
+  const moon = useAtomValue(moonReplicaAtom);
+  const progress = useAtomValue(progressAtom);
+  const lesson = useAtomValue(lessonAtom);
+  const busy = useAtomValue(busyAtom);
+  const setBusy = useAtomSet(busyAtom);
+  const setPlayhead = useAtomSet(playheadAtom);
+  const online = readOnline(useAtomValue(onlineAtom));
   const writeEvent = useAtomSet(writeAtom, { mode: "promiseExit" });
-  const ferryEvents = useAtomSet(ferryAtom, { mode: "promiseExit" });
-  const destroyIsle = useAtomSet(destroyAtom, { mode: "promiseExit" });
+  const setOnline = useAtomSet(setOnlineAtom, { mode: "promiseExit" });
+  const setServer = useAtomSet(setServerAtom, { mode: "promiseExit" });
+  const stormEvent = useAtomSet(stormAtom, { mode: "promiseExit" });
+  const replayEvent = useAtomSet(replayAtom, { mode: "promiseExit" });
+  const advanceLesson = useAtomSet(advanceAtom, { mode: "promiseExit" });
+  const resetLesson = useAtomSet(resetAtom, { mode: "promiseExit" });
+  const pickIsle = useAtomSet(pickIsleAtom, { mode: "promiseExit" });
+  const traces = tracesOf(useAtomValue(tracesAtom));
+  const serverUp = online.server;
+  const mission = progress.mission;
+  const active = progress.active;
+  const won = lesson.complete;
   const [seated, setSeated] = useState(false);
   const [curtain, setCurtain] = useState<BootCurtainPhase | "off">("off");
   const [bootStep, setBootStep] = useState(0);
   const [landed, setLanded] = useState(false);
-  const [playhead, setPlayhead] = useState<{ sun: number | null; moon: number | null }>({
-    sun: null,
-    moon: null,
-  });
-  const [active, setActive] = useState<ReplicaId>("sun");
-  const [mission, setMission] = useState<MissionId | 0>(1);
-  const [flags, setFlags] = useState<Flags>(emptyFlags);
-  const [won, setWon] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [forge, setForge] = useState(-1);
-  const [failing, setFailing] = useState(false);
-  const [caption, setCaption] = useState<MessageKey>("cap.idle");
-  const [capParams, setCapParams] = useState<Record<string, string | number>>({});
   const [lit, setLit] = useState<ReplicaId | null>(null);
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [focusPetId, setFocusPetId] = useState<string | null>(null);
   const [logView, setLogView] = useState<"all" | ReplicaId | null>(null);
   const [pulse, setPulse] = useState<Pulse | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const run = useRef(0);
 
-  const moonOpen = mission === 0 || mission >= 4;
   const [moonLane, setMoonLane] = useState(false);
   const [moonIn, setMoonIn] = useState(false);
   const stackRef = useRef<HTMLDivElement>(null);
   const sunLaneRef = useRef<HTMLDivElement>(null);
   const sunMode = useRef<"boot" | "fill" | "hug" | "pair">("boot");
-  const world = {
-    sun: viewReplica("sun", sunRows, playhead.sun),
-    moon: viewReplica("moon", moonRows, playhead.moon),
-  };
+  const world = { sun, moon };
   const sunHerd = herd(world.sun).length;
   const hugSun = !moonIn && sunHerd > 0;
-  const renamed =
-    world.sun.journal.some((e) => e.event === "Named") ||
-    world.moon.journal.some((e) => e.event === "Named");
-  const toastOn = forge >= 0 || failing;
-  const spot: Spotlight =
-    mission !== 0 && !won && !logView && !toastOn ? spotlightFor(mission, flags, renamed) : null;
+  const moonOpen = lesson.moonOpen;
+  const spot: Spotlight = !won && !logView ? lesson.spotlight : null;
   const logCount = world.sun.journal.length + world.moon.journal.length;
   const prevLog = useRef(0);
   const logBump = useRef(0);
@@ -969,16 +987,11 @@ function WorkshopApp() {
     return () => setLog(null);
   }, [seated, logCount, setLog]);
 
-  const check = useCallback(
-    (nextSun: Replica, nextMoon: Replica, nextFlags: Flags, id: MissionId | 0) => {
-      if (id === 0) return;
-      if (checkMission(id, nextSun, nextMoon, nextFlags)) {
-        setWon(true);
-        sfx.win();
-      }
-    },
-    [],
-  );
+  const prevComplete = useRef(false);
+  useEffect(() => {
+    if (lesson.complete && !prevComplete.current && mission !== 0) sfx.win();
+    prevComplete.current = lesson.complete;
+  }, [lesson.complete, mission]);
 
   useEffect(
     () => () => {
@@ -1166,35 +1179,18 @@ function WorkshopApp() {
     setCurtain("rise");
   }
 
-  async function walk(ok: boolean, apply?: () => void) {
-    const token = ++run.current;
-    setBusy(true);
-    setFailing(false);
-    const last = ok ? 3 : 2;
-    for (let i = 0; i <= last; i++) {
-      if (run.current !== token) return false;
-      setForge(i);
-      if (!ok && i === 2) {
-        setFailing(true);
-        sfx.reject();
-        apply?.();
-      } else sfx.step();
-      if (ok && i === 3) apply?.();
-      const hold = !ok && i === 2 ? 1700 : i === 0 ? 950 : i === 3 ? 1200 : 1100;
-      await wait(hold);
-    }
-    return run.current === token;
-  }
-
   async function act(isle: ReplicaId, event: EventTag, payload: Record<string, unknown>) {
     if (busy) return;
+    const token = ++run.current;
+    setBusy(true);
     sfx.stamp();
     const exit = await writeEvent({ isle, event, payload });
     const result = Exit.isSuccess(exit)
       ? exit.value
-      : { ok: false as const, error: "jam", detail: Cause.pretty(exit.cause) };
+      : { ok: false as const, error: "jam", detail: String(exit.cause) };
     const committed = result.ok && result.entry.id.length > 0;
     const petId = String((committed ? result.entry.payload.id : payload.id) ?? "");
+    if (petId) setFocusPetId(petId);
     setAttempt({
       event,
       payload: committed ? result.entry.payload : payload,
@@ -1204,68 +1200,32 @@ function WorkshopApp() {
       entryId: committed ? result.entry.id : undefined,
       isle,
     });
-    setPending({ petId, event });
-    setPulse(null);
-    setCaption("cap.walk");
-    const nextFlags: Flags = {
-      ...flags,
-      rejected: flags.rejected || !committed,
-      played: flags.played || (committed && event === "Played"),
-      slept: flags.slept || (committed && event === "Slept"),
-    };
-    const ok = await walk(committed, () => {
-      if (committed) {
-        setPlayhead((current) => ({ ...current, [isle]: null }));
-        setFlags(nextFlags);
-        setActive(isle);
-        setLit(isle);
-        sfx.commit();
-        setCaption("cap.ok");
-        setPending(null);
-        setPicked(result.ok ? result.entry.id : "");
-        setPulse({ petId, event, ok: true, nonce: Date.now() });
-      } else {
-        setPending(null);
-        setPulse({ petId, event, ok: false, nonce: Date.now() });
-      }
-    });
-    const token = run.current;
-    if (!ok) return;
-    if (!committed) {
-      const why = t(`err.${result.ok ? "jam" : result.error}` as MessageKey);
-      const detail = result.ok ? "write returned an empty journal id" : result.detail;
-      setForge(2);
-      setFailing(true);
-      setCaption("cap.no");
-      setCapParams({ why: detail ? `${why} ${detail}` : why });
-    }
     setPending(null);
+    if (committed) {
+      setLit(isle);
+      sfx.commit();
+      setPicked(result.entry.id);
+      setPulse({ petId, event, ok: true, nonce: Date.now() });
+    } else {
+      sfx.reject();
+      setPulse({ petId, event, ok: false, nonce: Date.now() });
+    }
+    await wait(committed ? 480 : 640);
+    if (run.current !== token) return;
     setBusy(false);
-    const nextSun =
-      isle === "sun" && result.ok && committed
-        ? viewReplica("sun", [...sunRows, result.entry], null)
-        : world.sun;
-    const nextMoon =
-      isle === "moon" && result.ok && committed
-        ? viewReplica("moon", [...moonRows, result.entry], null)
-        : world.moon;
-    check(nextSun, nextMoon, nextFlags, mission);
     window.setTimeout(() => {
-      if (run.current === token) {
-        setForge(-1);
-        setFailing(false);
-        setLit(null);
-      }
-    }, 1100);
+      if (run.current === token) setLit(null);
+    }, 420);
   }
 
   // Stable per-isle callbacks (latest handlers via ref) so the memoized
-  // Isle/CritterCard trees skip the ~1/s forge-tick renders during actions.
-  const isleHandlers = useRef({ act, storm, doReplay, fold });
-  isleHandlers.current = { act, storm, doReplay, fold };
+  // Isle/CritterCard trees skip unrelated parent renders during actions.
+  const isleHandlers = useRef({ act, storm, doReplay, toggleOnline, focusPet: setFocusPetId });
+  isleHandlers.current = { act, storm, doReplay, toggleOnline, focusPet: setFocusPetId };
   const isleCallbacks = useMemo(() => {
     const forIsle = (isle: ReplicaId) => ({
       onAct: (event: EventTag, pet: Critter, name?: string) => {
+        isleHandlers.current.focusPet(pet.id);
         void isleHandlers.current.act(
           isle,
           event,
@@ -1274,8 +1234,9 @@ function WorkshopApp() {
       },
       onStorm: () => void isleHandlers.current.storm(isle),
       onReplay: () => void isleHandlers.current.doReplay(isle),
-      onFold: () => isleHandlers.current.fold(isle),
-      onPick: () => setActive(isle),
+      onToggleOnline: () => void isleHandlers.current.toggleOnline(isle),
+      onPick: () => void pickIsle(isle),
+      onFocusPet: (id: string) => isleHandlers.current.focusPet(id),
       onOpenLog: () => setLogView(isle),
     });
     return { sun: forIsle("sun"), moon: forIsle("moon") };
@@ -1283,52 +1244,32 @@ function WorkshopApp() {
 
   async function hatch(species: Species) {
     const isle = moonOpen ? active : "sun";
-    void act(isle, "Hatched", { id: newCritterId(), species, name: defaultName(species) });
+    const id = newCritterId();
+    setFocusPetId(id);
+    void act(isle, "Hatched", { id, species, name: defaultName(species) });
   }
 
-  async function ferry(from: ReplicaId, to: ReplicaId, compact = false) {
-    if (busy || !moonOpen) return;
+  async function toggleOnline(isle: ReplicaId) {
+    if (busy) return;
+    const next = !online[isle];
     setBusy(true);
-    sfx.ferry();
-    const exit = await ferryEvents({ from, to, compact });
-    const result = Exit.isSuccess(exit)
-      ? exit.value
-      : { imported: 0, conflicts: 0, compacted: false, destEntries: world[to].journal };
-    setCaption(result.imported ? "cap.sync" : "cap.syncEmpty");
-    setCapParams({ n: result.imported });
-    await wait(1200);
-    const nextFlags: Flags = {
-      ...flags,
-      conflicted: flags.conflicted || result.conflicts > 0,
-      compacted: flags.compacted || result.compacted,
-    };
-    if (result.conflicts > 0) setCaption("cap.conflict");
-    if (compact && result.compacted) setCaption("cap.fold");
-    setPlayhead((current) => ({ ...current, [to]: null }));
-    setFlags(nextFlags);
-    setActive(to);
-    setLit(to);
-    const token = run.current;
-    window.setTimeout(() => {
-      if (run.current === token) setLit(null);
-    }, 480);
+    await setOnline({ isle, online: next });
     setBusy(false);
-    const destView = viewReplica(to, result.destEntries, null);
-    check(
-      to === "sun" ? destView : world.sun,
-      to === "moon" ? destView : world.moon,
-      nextFlags,
-      mission,
-    );
+  }
+
+  async function toggleServer() {
+    if (busy) return;
+    const next = !serverUp;
+    setBusy(true);
+    await setServer(next);
+    setBusy(false);
   }
 
   async function storm(id: ReplicaId) {
     if (busy || world[id].journal.length === 0) return;
     setBusy(true);
     sfx.wipe();
-    setCaption("cap.storm");
-    setPlayhead((current) => ({ ...current, [id]: 0 }));
-    setFlags({ ...flags, wiped: true, rebuilt: false });
+    await stormEvent(id);
     setPulse({ ok: false, nonce: Date.now() });
     await wait(900);
     setBusy(false);
@@ -1337,63 +1278,32 @@ function WorkshopApp() {
   async function doReplay(id: ReplicaId) {
     if (busy || world[id].journal.length === 0) return;
     setBusy(true);
-    setCaption("cap.replay");
     const replica = world[id];
-    setPlayhead((current) => ({ ...current, [id]: 0 }));
+    setPlayhead((current) => setIslePlayhead(current, id, 0));
     for (let i = 0; i < replica.journal.length; i++) {
       const entry = replica.journal[i];
       setPicked(entry.id);
       setPulse({ petId: entry.primaryKey, event: entry.event, ok: true, nonce: Date.now() });
-      setPlayhead((current) => ({ ...current, [id]: i + 1 }));
+      setPlayhead((current) => setIslePlayhead(current, id, i + 1));
       sfx.rebuild();
       await wait(750);
     }
-    const nextRep = viewReplica(id, replica.journal, null);
-    const nextFlags: Flags = { ...flags, rebuilt: herd(nextRep).length > 0 };
-    setPlayhead((current) => ({ ...current, [id]: null }));
-    setFlags(nextFlags);
+    await replayEvent(id);
     setBusy(false);
-    check(
-      id === "sun" ? nextRep : world.sun,
-      id === "moon" ? nextRep : world.moon,
-      nextFlags,
-      mission,
-    );
-  }
-
-  function fold(id: ReplicaId) {
-    if (busy || !moonOpen) return;
-    const to: ReplicaId = id === "sun" ? "moon" : "sun";
-    void ferry(id, to, true);
   }
 
   function advance() {
-    if (mission === 0 || mission === 6) {
-      setMission(0);
-      setWon(false);
-      return;
-    }
-    setMission((m) => (m === 0 ? 0 : ((m + 1) as MissionId)));
-    setWon(false);
+    void advanceLesson(undefined);
   }
 
   function reset() {
     run.current += 1;
-    void destroyIsle("sun");
-    void destroyIsle("moon");
-    setPlayhead({ sun: null, moon: null });
-    setActive("sun");
-    setMission(1);
-    setFlags(emptyFlags());
-    setWon(false);
-    setForge(-1);
-    setFailing(false);
-    setCaption("cap.idle");
-    setBusy(false);
+    void resetLesson(undefined);
     setLogView(null);
     setAttempt(null);
     setPulse(null);
     setPending(null);
+    setFocusPetId(null);
   }
 
   useEffect(() => {
@@ -1402,7 +1312,7 @@ function WorkshopApp() {
       return;
     }
     setNext({
-      label: mission === 6 ? t("hud.free") : t("hud.next"),
+      label: mission === LAST_MISSION ? t("hud.free") : t("hud.next"),
       onClick: advance,
     });
     return () => setNext(null);
@@ -1411,11 +1321,6 @@ function WorkshopApp() {
   const title = mission === 0 ? t("ms.free.title") : t(`ms.${mission}.title` as MessageKey);
   const hint = mission === 0 ? t("ms.free.hint") : t(`ms.${mission}.hint` as MessageKey);
   const win = mission === 0 ? "" : t(`ms.${mission}.win` as MessageKey);
-  const stepHint = failing
-    ? t(caption, capParams)
-    : forge < 0
-      ? t("log.append")
-      : t(`step.${forge}` as MessageKey, { event: attempt?.event ?? "Event" });
 
   const boot =
     curtain !== "off" ? (
@@ -1525,7 +1430,7 @@ function WorkshopApp() {
           <div className="boot-arrive boot-arrive-copy shrink-0">
             <div className="relative flex h-5 items-center gap-1.5">
               <div className="flex min-w-0 flex-1 gap-0.5">
-                {([1, 2, 3, 4, 5, 6] as const).map((n) => {
+                {MISSION_IDS.map((n) => {
                   const filled = mission === 0 || n < mission || (n === mission && won);
                   const here = mission !== 0 && n === mission && !won;
                   return (
@@ -1558,54 +1463,35 @@ function WorkshopApp() {
           <div className="boot-arrive boot-arrive-isle relative z-0 min-h-0 flex-1 overflow-visible">
             <div
               ref={stackRef}
-              className={cn("isle-stack h-full min-h-0 p-0.5", moonIn && "is-pair")}
+              className={cn(
+                "isle-stack h-full min-h-0 p-0.5",
+                moonIn && "is-pair",
+                moonIn && (active === "sun" ? "is-focus-sun" : "is-focus-moon"),
+              )}
             >
-              <div ref={sunLaneRef} className="sun-lane">
+              <div ref={sunLaneRef} className="sun-lane" onClick={() => void pickIsle("sun")}>
                 <Isle
                   replica={world.sun}
                   locked={false}
                   selected={active === "sun"}
                   stretch
                   lit={lit === "sun"}
-                  spot={active === "sun" ? spot : null}
+                  spot={spot}
                   busy={busy}
                   pulse={pulse}
                   pending={pending}
+                  online={online.sun && serverUp}
+                  unreachable={online.sun && !serverUp}
+                  focusPetId={focusPetId}
                   {...isleCallbacks.sun}
                 />
               </div>
               {moonLane ? (
-                <div className="isle-moon-lane" inert={!moonIn}>
-                  <div className="isle-ferry relative z-20 flex min-w-0 shrink-0 gap-1.5 overflow-visible">
-                    <GuideHit
-                      on={spot === "ferry"}
-                      label={t("guide.tap")}
-                      className="min-w-0 flex-1"
-                    >
-                      <Button
-                        size="sm"
-                        style={{ ["--i" as string]: 0 }}
-                        className={cn(
-                          "isle-ferry-btn h-8 w-full min-w-0 px-2 text-xs",
-                          spot === "ferry" && "guide-spot",
-                        )}
-                        disabled={busy}
-                        onClick={() => void ferry("sun", "moon")}
-                      >
-                        <span className="truncate">{t("act.ferry")}</span>
-                      </Button>
-                    </GuideHit>
-                    <Button
-                      size="sm"
-                      variant="sky"
-                      style={{ ["--i" as string]: 1 }}
-                      className="isle-ferry-btn h-8 min-w-0 flex-1 px-2 text-xs"
-                      disabled={busy}
-                      onClick={() => void ferry("moon", "sun")}
-                    >
-                      <span className="truncate">{t("act.ferryBack")}</span>
-                    </Button>
-                  </div>
+                <div
+                  className="isle-moon-lane"
+                  inert={!moonIn}
+                  onClick={() => void pickIsle("moon")}
+                >
                   <div className="isle-moon-board">
                     <Isle
                       replica={world.moon}
@@ -1613,10 +1499,13 @@ function WorkshopApp() {
                       selected={active === "moon"}
                       stretch
                       lit={lit === "moon"}
-                      spot={active === "moon" ? spot : null}
+                      spot={spot}
                       busy={busy}
                       pulse={pulse}
                       pending={pending}
+                      online={online.moon && serverUp}
+                      unreachable={online.moon && !serverUp}
+                      focusPetId={focusPetId}
                       {...isleCallbacks.moon}
                     />
                   </div>
@@ -1625,10 +1514,42 @@ function WorkshopApp() {
             </div>
           </div>
 
+          <div className="relative z-50 flex shrink-0 items-center gap-1 px-0.5">
+            <ForgeToast spans={traces} />
+            {moonLane ? (
+              <GuideHit on={spot === "server"} label={t("guide.server")} className="flex shrink-0">
+                <Button
+                  size="sm"
+                  variant={serverUp ? "sky" : "danger"}
+                  className={cn(
+                    "h-8 w-[7rem] shrink-0 px-2 text-[11px]",
+                    spot === "server" && "guide-spot",
+                  )}
+                  disabled={busy}
+                  onClick={() => void toggleServer()}
+                  aria-pressed={serverUp}
+                >
+                  {serverUp ? <Server className="size-3" /> : <ServerOff className="size-3" />}
+                  <span className="grid min-w-0 flex-1">
+                    <span className="invisible col-start-1 row-start-1 truncate">
+                      {t("net.serverDown")}
+                    </span>
+                    <span className="col-start-1 row-start-1 truncate">
+                      {t(serverUp ? "net.server" : "net.serverDown")}
+                    </span>
+                  </span>
+                </Button>
+              </GuideHit>
+            ) : null}
+          </div>
           <div className="relative z-50 flex shrink-0 flex-col">
-            <div className="relative z-50 grid shrink-0 grid-cols-4 items-end gap-1.5 pt-10">
+            <div className="relative z-50 grid shrink-0 grid-cols-4 items-end gap-1.5 pt-8">
               {SPECIES.map((sp, index) => {
-                const full = busy || herd(world[active]).length >= 2;
+                const pets = herd(world[active]);
+                const full = !lesson.controls.hatch.enabled || pets.length >= MAX_HERD;
+                const guidedHatch = nextHatchSpecies(pets);
+                const needOther = spot === "hatch" && pets.length > 0 && pets.length < MAX_HERD;
+                const blocked = full || (needOther && pets.some((pet) => pet.species === sp));
                 return (
                   <div
                     key={sp}
@@ -1637,13 +1558,13 @@ function WorkshopApp() {
                   >
                     <Button
                       variant={sp === "pip" ? "sun" : sp === "nub" ? "sky" : "primary"}
-                      aria-disabled={full}
+                      aria-disabled={blocked}
                       onClick={() => {
-                        if (!full) void hatch(sp);
+                        if (!blocked) void hatch(sp);
                       }}
                       className={cn(
                         "relative h-11 w-full px-1 text-xs",
-                        spot === "hatch" && sp === "pip" && "guide-spot",
+                        spot === "hatch" && sp === guidedHatch && "guide-spot",
                       )}
                     >
                       {sp === "pip" ? "Pip" : sp === "nub" ? "Nub" : "Bean"}
@@ -1651,7 +1572,7 @@ function WorkshopApp() {
                     <span
                       className="absolute bottom-[42%] left-1/2 z-20 size-[4.5rem] -translate-x-1/2 cursor-pointer"
                       onClick={() => {
-                        if (!full) void hatch(sp);
+                        if (!blocked) void hatch(sp);
                       }}
                     >
                       {/* Static ground shadow: filter drop-shadow on a canvas
@@ -1665,9 +1586,9 @@ function WorkshopApp() {
                         pet={{ species: sp, stage: "kid", belly: 2, mood: 2, energy: 2 }}
                         alt={sp}
                       />
-                      {spot === "hatch" && sp === "pip" ? (
+                      {spot === "hatch" && sp === guidedHatch ? (
                         <span className="guide-tip" aria-hidden>
-                          {t("guide.tap")}
+                          {t("guide.hatch")}
                         </span>
                       ) : null}
                     </span>
@@ -1685,7 +1606,6 @@ function WorkshopApp() {
               </Button>
             </div>
           </div>
-          <ForgeToast show={toastOn} failing={failing} forge={forge} text={stepHint} />
           {logView ? (
             <EventsDialog
               title={

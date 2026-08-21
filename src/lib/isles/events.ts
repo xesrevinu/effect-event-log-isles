@@ -1,14 +1,7 @@
 import { Schema } from "effect";
 import * as EventGroup from "effect/unstable/eventlog/EventGroup";
 import * as EventLog from "effect/unstable/eventlog/EventLog";
-import {
-  EmptyName,
-  Hungry,
-  IsleFull,
-  MissingPet,
-  Sleepy,
-  Stuffed,
-} from "@/lib/isles/errors";
+import { EmptyName, Hungry, IsleFull, MissingPet, Sleepy, Stuffed } from "@/lib/isles/errors";
 
 export const SpeciesSchema = Schema.Literals(["pip", "nub", "bean"]);
 

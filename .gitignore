@@ -6,3 +6,7 @@ node_modules/
 .DS_Store
 grok-final-pets-resources/
 vendor/
+.eslintcache
+.oxlintcache
+*.tsbuildinfo
+.zed/

@@ -289,7 +289,8 @@ const en: Record<keyof typeof zh, string> = {
   "ms.5.win": "Same primaryKey — each side wrote a different entry.",
 
   "ms.6.title": "Fold the history",
-  "ms.6.hint": "Play a few times so the book grows, then tap compact. The ferry sends a snapshot; this isle’s journal stays append-only.",
+  "ms.6.hint":
+    "Play a few times so the book grows, then tap compact. The ferry sends a snapshot; this isle’s journal stays append-only.",
   "ms.6.win": "The other isle got a snapshot. This book is still append-only.",
 
   "ms.free.title": "The isles are yours",

@@ -29,12 +29,7 @@ export function sharedIds(a: Replica, b: Replica): string[] {
   return Object.keys(b.projection).filter((k) => left.has(k));
 }
 
-export function checkMission(
-  id: MissionId,
-  sun: Replica,
-  moon: Replica,
-  flags: Flags,
-): boolean {
+export function checkMission(id: MissionId, sun: Replica, moon: Replica, flags: Flags): boolean {
   switch (id) {
     case 1:
       return herd(sun).length + herd(moon).length > 0;

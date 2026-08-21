@@ -12,9 +12,7 @@ import { CritterEvents } from "@/lib/isles/events";
 
 export type ViewEntry = Entry;
 
-export const decodePayload = (
-  entry: EventJournal.Entry,
-): Effect.Effect<Record<string, unknown>> =>
+export const decodePayload = (entry: EventJournal.Entry): Effect.Effect<Record<string, unknown>> =>
   Effect.gen(function* () {
     const def = CritterEvents.events[entry.event];
     if (!def) return { id: entry.primaryKey };
@@ -55,12 +53,7 @@ export const replayJournal = (
     let projection: Record<string, Critter> = {};
     for (const entry of entries) {
       const payload = yield* decodePayload(entry);
-      projection = applyEvent(
-        projection,
-        entry.event as EventTag,
-        payload,
-        entry.createdAtMillis,
-      );
+      projection = applyEvent(projection, entry.event as EventTag, payload, entry.createdAtMillis);
     }
     return projection;
   });

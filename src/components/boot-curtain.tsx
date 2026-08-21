@@ -90,13 +90,15 @@ export function BootCurtain({
           <svg className="boot-curtain-tex" aria-hidden>
             <defs>
               <pattern id={plus} width="148" height="148" patternUnits="userSpaceOnUse">
-                <path
-                  d="M76 68v-10h-4v10h-10v4h10v10h4v-10h10v-4h-10z"
-                  fill="currentColor"
-                />
+                <path d="M76 68v-10h-4v10h-10v4h10v10h4v-10h10v-4h-10z" fill="currentColor" />
               </pattern>
             </defs>
-            <rect className="boot-curtain-tex-plus" width="200%" height="200%" fill={`url(#${plus})`} />
+            <rect
+              className="boot-curtain-tex-plus"
+              width="200%"
+              height="200%"
+              fill={`url(#${plus})`}
+            />
           </svg>
           <div className="boot-curtain-wash" />
           <div className="boot-curtain-sheen" />

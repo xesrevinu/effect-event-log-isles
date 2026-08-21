@@ -27,13 +27,7 @@ function langTag(locale: Locale) {
   return locale === "zh" ? "zh-Hans" : "en";
 }
 
-export function I18nProvider({
-  hint,
-  children,
-}: {
-  hint: Locale;
-  children: ReactNode;
-}) {
+export function I18nProvider({ hint, children }: { hint: Locale; children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(hint);
 
   useEffect(() => {
@@ -56,8 +50,7 @@ export function I18nProvider({
   }, []);
 
   const t = useCallback(
-    (key: MessageKey, params?: Record<string, string | number>) =>
-      translate(locale, key, params),
+    (key: MessageKey, params?: Record<string, string | number>) => translate(locale, key, params),
     [locale],
   );
 

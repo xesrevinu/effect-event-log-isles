@@ -85,9 +85,12 @@ export function CritterSprite({
 
   useEffect(() => {
     if (!waiting || clip !== "idle") return;
-    const timer = window.setTimeout(() => {
-      setClip(nextRoamClip(Math.random()));
-    }, roamIdleMs(Math.random(), pet.species));
+    const timer = window.setTimeout(
+      () => {
+        setClip(nextRoamClip(Math.random()));
+      },
+      roamIdleMs(Math.random(), pet.species),
+    );
     return () => window.clearTimeout(timer);
   }, [waiting, clip, pet.species]);
 

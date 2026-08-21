@@ -444,7 +444,7 @@ not a hand-off that needs them to run anything.
 - **2D game sprites / animation sheets** (characters, walk cycles, attacks,
   projectiles, FX, props): when gen tools are listed, run **`generate2dsprite`**
   (`.grok/skills/generate2dsprite/SKILL.md`) — solid **`#FF00FF`** magenta sheets
-  + local chroma postprocess scripts. That magenta key is **required** for the
+  - local chroma postprocess scripts. That magenta key is **required** for the
   processor (do not invent a different “keyable” color when using this path).
   Layer **`game-asset-core`** (+ **`game-animation-frames`** /
   **`game-character-consistency`** when relevant) for QC and defaults. When gen
@@ -666,5 +666,6 @@ boots with dependencies ready — do not re-run those unless something is missin
 - **Build gotcha:** the Nitro Vercel preset only activates during
   `npm run build` (gated in `vite.config.ts`); never enable it in dev or it
   opens a second port and breaks the single-port 8080 preview.
-- Lint currently reports warnings only (0 errors) on a clean checkout; that is
-  expected, not a regression.
+- Lint/format toolchain is **oxlint + oxfmt + TypeScript 7** (`npm run lint` /
+  `format` / `typecheck`). Lint currently reports warnings only (0 errors) on a
+  clean checkout; that is expected, not a regression.

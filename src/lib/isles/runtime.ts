@@ -4,12 +4,7 @@ import * as EventLog from "effect/unstable/eventlog/EventLog";
 import * as EventLogEncryption from "effect/unstable/eventlog/EventLogEncryption";
 import { StoreId } from "effect/unstable/eventlog/EventLogMessage";
 import * as Reactivity from "effect/unstable/reactivity/Reactivity";
-import {
-  replay,
-  type EventTag,
-  type ReplicaId,
-  type WriteResult,
-} from "@/lib/critter-sim";
+import { replay, type EventTag, type ReplicaId, type WriteResult } from "@/lib/critter-sim";
 import { compactCritters, encodeSnapshotEntry } from "@/lib/isles/compact";
 import { toViewEntries, toViewEntry, type ViewEntry } from "@/lib/isles/decode";
 import { formatWriteCause } from "@/lib/isles/errors";
@@ -87,8 +82,7 @@ export const makeIsleLayer = (id: ReplicaId, mode: JournalMode) => {
 const bytesFromB64 = (value: string): Uint8Array =>
   Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
 
-const b64FromBytes = (bytes: Uint8Array): string =>
-  btoa(String.fromCharCode(...bytes));
+const b64FromBytes = (bytes: Uint8Array): string => btoa(String.fromCharCode(...bytes));
 
 const persistentRemoteId = (id: ReplicaId): EventJournal.RemoteId => {
   if (typeof localStorage !== "undefined") {
@@ -162,7 +156,9 @@ export class Isles extends Context.Service<
       event: EventTag,
       payload: Record<string, unknown>,
     ) => Effect.Effect<WriteResult>;
-    readonly entries: (isle: ReplicaId) => Effect.Effect<ViewEntry[], EventJournal.EventJournalError>;
+    readonly entries: (
+      isle: ReplicaId,
+    ) => Effect.Effect<ViewEntry[], EventJournal.EventJournalError>;
     readonly ferry: (
       from: ReplicaId,
       to: ReplicaId,
@@ -251,7 +247,9 @@ const makeIsles = (mode: JournalMode) =>
                 { disableChecks: true },
               ),
           );
-          const prepared = compact ? yield* compactRemotes(incoming, sourceView) : { remotes: incoming, compacted: false };
+          const prepared = compact
+            ? yield* compactRemotes(incoming, sourceView)
+            : { remotes: incoming, compacted: false };
           let conflicts = 0;
           const destBefore = yield* dest.journal.entries;
           for (const remote of prepared.remotes) {

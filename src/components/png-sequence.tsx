@@ -96,7 +96,17 @@ export function PngSequence({
         const scale = dest.dw / cell.sw;
         ctx.imageSmoothingEnabled = scale < 0.98;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(sheetData.source, cell.sx, cell.sy, cell.sw, cell.sh, dest.dx, dest.dy, dest.dw, dest.dh);
+        ctx.drawImage(
+          sheetData.source,
+          cell.sx,
+          cell.sy,
+          cell.sw,
+          cell.sh,
+          dest.dx,
+          dest.dy,
+          dest.dw,
+          dest.dh,
+        );
       }
     };
 

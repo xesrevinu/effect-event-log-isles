@@ -1,4 +1,13 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { RegistryProvider, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react";
 import { Cause, Exit } from "effect";
@@ -189,7 +198,7 @@ function StatPips({
                 on ? "bg-grape shadow-[0_1px_0_#a568cc]" : "bg-white/45",
                 on && (hop ? "anim-pip" : "pip-breathe"),
               )}
-                style={{ animationDelay: `${(hop ? 0 : breatheBase) + i * 70}ms` }}
+              style={{ animationDelay: `${(hop ? 0 : breatheBase) + i * 70}ms` }}
             />
           );
         })}
@@ -355,7 +364,11 @@ const CritterCard = memo(function CritterCard({
               >
                 <span className="min-w-0 truncate text-base font-black">{pet.name}</span>
                 <span className="name-pencil-sway shrink-0">
-                  <img src="/icons/pencil.webp" alt="" className="name-pencil size-5 object-contain" />
+                  <img
+                    src="/icons/pencil.webp"
+                    alt=""
+                    className="name-pencil size-5 object-contain"
+                  />
                 </span>
               </button>
             )}
@@ -931,9 +944,7 @@ function WorkshopApp() {
     world.moon.journal.some((e) => e.event === "Named");
   const toastOn = forge >= 0 || failing;
   const spot: Spotlight =
-    mission !== 0 && !won && !logView && !toastOn
-      ? spotlightFor(mission, flags, renamed)
-      : null;
+    mission !== 0 && !won && !logView && !toastOn ? spotlightFor(mission, flags, renamed) : null;
   const logCount = world.sun.journal.length + world.moon.journal.length;
   const prevLog = useRef(0);
   const logBump = useRef(0);
@@ -959,12 +970,7 @@ function WorkshopApp() {
   }, [seated, logCount, setLog]);
 
   const check = useCallback(
-    (
-      nextSun: Replica,
-      nextMoon: Replica,
-      nextFlags: Flags,
-      id: MissionId | 0,
-    ) => {
+    (nextSun: Replica, nextMoon: Replica, nextFlags: Flags, id: MissionId | 0) => {
       if (id === 0) return;
       if (checkMission(id, nextSun, nextMoon, nextFlags)) {
         setWon(true);
@@ -1235,12 +1241,14 @@ function WorkshopApp() {
     }
     setPending(null);
     setBusy(false);
-    const nextSun = isle === "sun" && result.ok && committed
-      ? viewReplica("sun", [...sunRows, result.entry], null)
-      : world.sun;
-    const nextMoon = isle === "moon" && result.ok && committed
-      ? viewReplica("moon", [...moonRows, result.entry], null)
-      : world.moon;
+    const nextSun =
+      isle === "sun" && result.ok && committed
+        ? viewReplica("sun", [...sunRows, result.entry], null)
+        : world.sun;
+    const nextMoon =
+      isle === "moon" && result.ok && committed
+        ? viewReplica("moon", [...moonRows, result.entry], null)
+        : world.moon;
     check(nextSun, nextMoon, nextFlags, mission);
     window.setTimeout(() => {
       if (run.current === token) {
@@ -1696,9 +1704,7 @@ function WorkshopApp() {
                       },
                     ]
               }
-              attempt={
-                attempt && (logView === "all" || attempt.isle === logView) ? attempt : null
-              }
+              attempt={attempt && (logView === "all" || attempt.isle === logView) ? attempt : null}
               selectedId={picked}
               onSelect={setPicked}
               onClose={() => setLogView(null)}

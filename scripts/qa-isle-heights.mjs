@@ -55,7 +55,9 @@ await page.screenshot({ path: SHOT("qa-1-empty-full") });
 // 2. First hatch (fill -> hug, the historically broken first transition)
 await mark("hatch-pip-click");
 await page.click('button:has-text("Pip")', { force: true });
-await page.waitForFunction(() => document.querySelectorAll(".pet-paper").length === 1, { timeout: 20000 });
+await page.waitForFunction(() => document.querySelectorAll(".pet-paper").length === 1, {
+  timeout: 20000,
+});
 await mark("pip-visible");
 await idle();
 await page.waitForTimeout(900);
@@ -64,7 +66,9 @@ await page.screenshot({ path: SHOT("qa-2-hug-one") });
 // 3. Second hatch (hug -> hug growth)
 await mark("hatch-nub-click");
 await page.click('button:has-text("Nub")', { force: true });
-await page.waitForFunction(() => document.querySelectorAll(".pet-paper").length === 2, { timeout: 20000 });
+await page.waitForFunction(() => document.querySelectorAll(".pet-paper").length === 2, {
+  timeout: 20000,
+});
 await mark("nub-visible");
 await idle();
 await page.waitForTimeout(900);
@@ -87,7 +91,9 @@ await page.waitForTimeout(300);
 // 5. Storm (hug -> fill, wipes herd) then replay (fill -> hug again)
 await mark("storm-click");
 await page.click("button:has(.lucide-wind) >> nth=0");
-await page.waitForFunction(() => document.querySelectorAll(".pet-paper").length === 0, { timeout: 10000 });
+await page.waitForFunction(() => document.querySelectorAll(".pet-paper").length === 0, {
+  timeout: 10000,
+});
 await idle();
 await page.waitForTimeout(900);
 await page.screenshot({ path: SHOT("qa-4-storm-full") });

@@ -156,7 +156,9 @@ export function decodePetSheet(src: string): Promise<PetSheet> {
 
 export async function preloadPetAssets() {
   const manifest = await loadPetsManifest();
-  await Promise.all(allPetIdleSheetUrls(manifest).map((src) => decodePetSheet(src).catch(() => undefined)));
+  await Promise.all(
+    allPetIdleSheetUrls(manifest).map((src) => decodePetSheet(src).catch(() => undefined)),
+  );
   return manifest;
 }
 

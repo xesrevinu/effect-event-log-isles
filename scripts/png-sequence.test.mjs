@@ -99,10 +99,7 @@ test("8x2 sheet cells walk left-to-right, top-to-bottom", () => {
 
 test("defringeRgba un-mattes white halo and drops pale edge pixels", () => {
   const data = new Uint8ClampedArray([
-    0, 0, 0, 0,
-    226, 226, 226, 128,
-    80, 140, 220, 255,
-    210, 218, 214, 255,
+    0, 0, 0, 0, 226, 226, 226, 128, 80, 140, 220, 255, 210, 218, 214, 255,
   ]);
   defringeRgba(data, 2, 2, 2, 2);
   assert.equal(data[3], 0);
@@ -120,7 +117,11 @@ test("canvasBackingSize follows the visible CSS box and device pixels", () => {
 test("sheet cells cover iPhone 3x hatch dest so the bitmap is never upscaled", () => {
   assert.equal(Math.round(spriteDestSize(SPRITE_HATCH_CSS, 3)), 298);
   assert.ok(SPRITE_SHEET_CELL >= Math.round(spriteDestSize(SPRITE_HATCH_CSS, 3)));
-  assert.deepEqual(allPetIdleSheetUrls(), ["/pets/pip/idle.webp", "/pets/nub/idle.webp", "/pets/bean/idle.webp"]);
+  assert.deepEqual(allPetIdleSheetUrls(), [
+    "/pets/pip/idle.webp",
+    "/pets/nub/idle.webp",
+    "/pets/bean/idle.webp",
+  ]);
 });
 
 test("sheetDrawRect sits a smaller cell on the canvas floor", () => {
@@ -149,7 +150,12 @@ test("allPetSheetUrls lists every species clip, using authored sheet paths", () 
     "/pets/bean/play.webp",
     "/pets/bean/sleep.webp",
   ]);
-  assert.equal(allPetSheetUrls({ pip: { idle: { count: 8, fps: 10, loop: true, sheet: "/custom/pip-idle.png" } } })[0], "/custom/pip-idle.png");
+  assert.equal(
+    allPetSheetUrls({
+      pip: { idle: { count: 8, fps: 10, loop: true, sheet: "/custom/pip-idle.png" } },
+    })[0],
+    "/custom/pip-idle.png",
+  );
 });
 
 test("public/pets/manifest.json maps full video rebuilds, not 16-frame strips", () => {
@@ -166,10 +172,16 @@ test("public/pets/manifest.json maps full video rebuilds, not 16-frame strips", 
   assert.equal(pipEat?.fps, 20);
   assert.equal(isSheet(pipIdle ?? { count: 145, fps: 16, loop: true, cols: 15 }), true);
   assert.equal(isVideo(pipIdle ?? { count: 145, fps: 16, loop: true }), false);
-  assert.equal(clipSheet("pip", "idle", pipIdle ?? { count: 145, fps: 16, loop: true, cols: 15 }), "/pets/pip/idle.webp");
+  assert.equal(
+    clipSheet("pip", "idle", pipIdle ?? { count: 145, fps: 16, loop: true, cols: 15 }),
+    "/pets/pip/idle.webp",
+  );
   assert.equal(clipEnded(9062, 16, 145, true), false);
   assert.equal(clipEnded(7249, 20, 145, false), false);
   assert.equal(clipEnded(7250, 20, 145, false), true);
   assert.equal(clipSpec(parsed, "bean", "play")?.loop, false);
-  assert.equal(clipVideo("pip", "idle", { count: 1, fps: 24, loop: true, video: "" }), "/pets/pip/idle.mp4");
+  assert.equal(
+    clipVideo("pip", "idle", { count: 1, fps: 24, loop: true, video: "" }),
+    "/pets/pip/idle.mp4",
+  );
 });

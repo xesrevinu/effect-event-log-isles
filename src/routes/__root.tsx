@@ -72,9 +72,15 @@ export const Route = createRootRoute({
             { property: "og:image:type", content: "image/jpeg" },
             { property: "og:image:width", content: "1200" },
             { property: "og:image:height", content: "630" },
-            { property: "og:image:alt", content: "EventLog Isles — two little isles, waiting for someone to raise" },
+            {
+              property: "og:image:alt",
+              content: "EventLog Isles — two little isles, waiting for someone to raise",
+            },
             { name: "twitter:image", content: ogImage },
-            { name: "twitter:image:alt", content: "EventLog Isles — two little isles, waiting for someone to raise" },
+            {
+              name: "twitter:image:alt",
+              content: "EventLog Isles — two little isles, waiting for someone to raise",
+            },
           ]
         : []),
       ...(xBanner
@@ -109,7 +115,11 @@ export const Route = createRootRoute({
 function RootComponent() {
   const { localeHint } = Route.useLoaderData();
   return (
-    <html lang={localeHint === "zh" ? "zh-Hans" : "en"} className="antialiased" suppressHydrationWarning>
+    <html
+      lang={localeHint === "zh" ? "zh-Hans" : "en"}
+      className="antialiased"
+      suppressHydrationWarning
+    >
       <head>
         <HeadContent />
       </head>

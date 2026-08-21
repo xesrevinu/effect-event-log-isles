@@ -37,7 +37,14 @@ cd "$ROOT"
 3. **GitHub is source of truth for OSS:** `https://github.com/xesrevinu/effect-event-log-isles`. If the sandbox lags `origin/main`, run `git fetch && git pull --ff-only` **in the detected root** before blaming assets or deploy.
 4. **Publish packages the sandbox project root**, not a `/tmp` clone. Syncing GitHub into `/tmp` does not update preview or the publish button.
 5. **`startup.sh`** should resolve its own directory (`ROOT="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"`) so one script works in App Builder, project agents, and local clones.
-6. **Local developers** ignore every `/workspace` or `/home/workdir/...` path. From the clone root: `npm ci && npm run dev` / `build` / `typecheck`.
+6. **Local developers** ignore every `/workspace` or `/home/workdir/...` path. From the clone root: `npm ci && npm run dev` / `build` / `typecheck` / `lint` / `format`.
+
+## Toolchain
+
+- **Typecheck:** TypeScript 7 (`npm run typecheck` → `tsc --noEmit`)
+- **Lint:** oxlint (`.oxlintrc.json`, `npm run lint`)
+- **Format:** oxfmt (`.oxfmtrc.json`, `npm run format`)
+- Do **not** reintroduce ESLint / Prettier configs or deps; script names stay the same.
 
 ### Quick self-check
 
@@ -54,4 +61,4 @@ If `public/pets/**` or `public/icons/**` still show `.png` while `origin/main` h
 ## Product
 
 Public OSS educational pet game for Effect EventLog. Production:
-https://effect-event-log.grok.me
+<https://effect-event-log.grok.me>

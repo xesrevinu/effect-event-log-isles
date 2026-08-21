@@ -9,14 +9,7 @@ export type Phase =
   | "compact"
   | "sync";
 
-export type EventTag =
-  | "Hatched"
-  | "Named"
-  | "Fed"
-  | "Played"
-  | "Slept"
-  | "Released"
-  | "Snapshot";
+export type EventTag = "Hatched" | "Named" | "Fed" | "Played" | "Slept" | "Released" | "Snapshot";
 
 export type Species = "pip" | "nub" | "bean";
 export type Stage = "egg" | "kid" | "big";
@@ -90,7 +83,13 @@ function clamp(n: number, max: number) {
 }
 
 function finish(c: Critter): Critter {
-  return { ...c, stage: stageFor(c.xp), belly: clamp(c.belly, MAX_BELLY), mood: clamp(c.mood, MAX_MOOD), energy: clamp(c.energy, MAX_ENERGY) };
+  return {
+    ...c,
+    stage: stageFor(c.xp),
+    belly: clamp(c.belly, MAX_BELLY),
+    mood: clamp(c.mood, MAX_MOOD),
+    energy: clamp(c.energy, MAX_ENERGY),
+  };
 }
 
 export function applyEvent(
@@ -120,7 +119,8 @@ export function applyEvent(
       break;
     }
     case "Named":
-      if (next[id]) next[id] = { ...next[id], name: String(payload.name ?? next[id].name), updatedAt: at };
+      if (next[id])
+        next[id] = { ...next[id], name: String(payload.name ?? next[id].name), updatedAt: at };
       break;
     case "Fed":
       if (next[id]) {
@@ -273,7 +273,9 @@ export function syncFrom(source: Replica, target: Replica) {
 
   for (const remote of incoming) {
     if (journal.some((e) => e.id === remote.id)) continue;
-    const localHits = journal.filter((e) => e.primaryKey === remote.primaryKey && e.id !== remote.id);
+    const localHits = journal.filter(
+      (e) => e.primaryKey === remote.primaryKey && e.id !== remote.id,
+    );
     if (localHits.length) conflicts += localHits.length;
     projection = applyEvent(projection, remote.event, remote.payload, remote.createdAt);
     journal = [...journal, remote];

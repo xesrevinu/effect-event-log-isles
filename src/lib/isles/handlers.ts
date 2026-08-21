@@ -3,14 +3,7 @@ import * as EventJournal from "effect/unstable/eventlog/EventJournal";
 import * as EventLog from "effect/unstable/eventlog/EventLog";
 import { MAX_BELLY, MAX_HERD, type Critter } from "@/lib/critter-sim";
 import { replayJournal } from "@/lib/isles/decode";
-import {
-  EmptyName,
-  Hungry,
-  IsleFull,
-  MissingPet,
-  Sleepy,
-  Stuffed,
-} from "@/lib/isles/errors";
+import { EmptyName, Hungry, IsleFull, MissingPet, Sleepy, Stuffed } from "@/lib/isles/errors";
 import { CritterEvents } from "@/lib/isles/events";
 
 export class IsleProjection extends Context.Service<

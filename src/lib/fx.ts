@@ -11,7 +11,9 @@ const watchers = new Set<(on: boolean) => void>();
 function ac() {
   if (typeof window === "undefined") return null;
   if (ctx) return ctx;
-  const Ctor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const Ctor =
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctor) return null;
   try {
     ctx = new Ctor();
@@ -78,7 +80,10 @@ function render(audio: AudioContext, name: SoundName, volume: number) {
       if (layer.detune) osc.detune.value = layer.detune;
       if (layer.glideTo !== undefined) {
         const glide = layer.glideTime ?? layer.attack + layer.decay;
-        osc.frequency.exponentialRampToValueAtTime(Math.max(1, layer.glideTo ?? 440), start + glide);
+        osc.frequency.exponentialRampToValueAtTime(
+          Math.max(1, layer.glideTo ?? 440),
+          start + glide,
+        );
       }
       const g = audio.createGain();
       g.gain.setValueAtTime(0.0001, start);
@@ -164,14 +169,18 @@ export function sfxEnabled() {
 export function startCues() {
   if (typeof window === "undefined" || started) return;
   started = true;
-  window.addEventListener("pointerdown", (event) => {
-    unlockAudio();
-    if (!(event.target instanceof Element)) return;
-    const btn = event.target.closest("button, [data-cuelume-press]");
-    if (!btn) return;
-    if (btn instanceof HTMLButtonElement && btn.disabled) return;
-    playCue("press", 0.8);
-  }, true);
+  window.addEventListener(
+    "pointerdown",
+    (event) => {
+      unlockAudio();
+      if (!(event.target instanceof Element)) return;
+      const btn = event.target.closest("button, [data-cuelume-press]");
+      if (!btn) return;
+      if (btn instanceof HTMLButtonElement && btn.disabled) return;
+      playCue("press", 0.8);
+    },
+    true,
+  );
   window.addEventListener("click", () => unlockAudio(), true);
 }
 

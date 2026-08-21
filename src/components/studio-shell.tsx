@@ -4,7 +4,7 @@ import { useI18n } from "@/lib/i18n-context";
 import { Button } from "@/components/ui";
 import { HelpSheet } from "@/components/help-sheet";
 import { cn } from "@/lib/cn";
-import { playCue, setSfxEnabled, sfxEnabled, startCues, unlockAudio, watchSfx } from "@/lib/fx";
+import { setSfxEnabled, sfxEnabled, startCues, unlockAudio, watchSfx } from "@/lib/fx";
 import { preloadPetAssets } from "@/lib/png-sequence";
 
 type NextAction = { label: string; onClick: () => void };
@@ -40,7 +40,13 @@ function BrandLeaf() {
 
 function BrandMark({ outlined = false, padded = false }: { outlined?: boolean; padded?: boolean }) {
   return (
-    <span className={cn("brand-mark text-base sm:text-[17px]", outlined ? null : "brand-mark-ink", padded && "px-1.5")}>
+    <span
+      className={cn(
+        "brand-mark text-base sm:text-[17px]",
+        outlined ? null : "brand-mark-ink",
+        padded && "px-1.5",
+      )}
+    >
       EventLog
       <BrandLeaf />
     </span>
@@ -82,10 +88,10 @@ function LangSwitch() {
         className="hud-lang-thumb"
         style={{ transform: `translateX(${index * 100}%)` }}
       />
-      {([
+      {[
         { id: "zh" as const, label: "中文" },
         { id: "en" as const, label: "EN" },
-      ]).map((opt) => (
+      ].map((opt) => (
         <button
           key={opt.id}
           type="button"
@@ -154,80 +160,83 @@ export function StudioShell({ children }: { children: ReactNode }) {
           <div
             className={cn(
               "relative flex w-full flex-col",
-              splash
-                ? "min-h-full"
-                : "min-h-0 h-[min(100dvh,var(--studio-max-h))] max-w-[760px]",
+              splash ? "min-h-full" : "min-h-0 h-[min(100dvh,var(--studio-max-h))] max-w-[760px]",
             )}
           >
-          <header
-            className={cn(
-              "z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 sm:px-3",
-              splash
-                ? "splash-chrome pointer-events-none absolute inset-x-0 top-0 z-20 pt-[max(0.85rem,env(safe-area-inset-top))] pb-12 [&>*]:pointer-events-auto"
-                : "relative shrink-0 bg-transparent pt-[max(0.3rem,env(safe-area-inset-top))]",
-            )}
-          >
-            <div className="flex min-w-0 items-center gap-0.5">
-              {log ? (
-                <button
-                  type="button"
-                  data-cuelume-press=""
-                  data-cuelume-release=""
-                  onClick={log.onOpen}
-                  className={cn(
-                    "flex items-center gap-1 rounded-full bg-surface px-2 py-1 shadow-[0_0_0_1.5px_rgba(59,42,20,0.14)] hover:bg-raised",
-                    bumpOn && "anim-log-bump",
-                  )}
-                >
-                  <BrandMark />
-                  <span className={cn("grid min-w-5 place-items-center rounded-full bg-sun px-1.5 text-[10px] font-black text-fg", bumpOn && "anim-pip")}>
-                    {log.count}
-                  </span>
-                </button>
-              ) : (
-                <BrandMark outlined={splash} padded />
+            <header
+              className={cn(
+                "z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-2 sm:px-3",
+                splash
+                  ? "splash-chrome pointer-events-none absolute inset-x-0 top-0 z-20 pt-[max(0.85rem,env(safe-area-inset-top))] pb-12 [&>*]:pointer-events-auto"
+                  : "relative shrink-0 bg-transparent pt-[max(0.3rem,env(safe-area-inset-top))]",
               )}
-            </div>
-            <div className="justify-self-center">
-              {next ? (
-                <Button size="sm" onClick={next.onClick} className="h-8 px-5 text-sm">
-                  {next.label}
-                </Button>
-              ) : null}
-            </div>
-            <div className="flex items-center justify-self-end gap-1">
-              <ChipIcon label={t("help.title")} onClick={() => setHelp(true)}>
-                <CircleHelp className="hud-mark size-[17px]" strokeWidth={2.45} />
-              </ChipIcon>
-              <ChipIcon
-                label={soundOn ? "mute" : "sound"}
-                off={!soundOn}
-                onClick={() => {
-                  unlockAudio();
-                  const nextOn = !sfxEnabled();
-                  setSfxEnabled(nextOn);
-                  setSoundOn(nextOn);
-                }}
-              >
-                {soundOn ? (
-                  <Volume2 className="hud-vol size-[17px]" strokeWidth={2.45} />
+            >
+              <div className="flex min-w-0 items-center gap-0.5">
+                {log ? (
+                  <button
+                    type="button"
+                    data-cuelume-press=""
+                    data-cuelume-release=""
+                    onClick={log.onOpen}
+                    className={cn(
+                      "flex items-center gap-1 rounded-full bg-surface px-2 py-1 shadow-[0_0_0_1.5px_rgba(59,42,20,0.14)] hover:bg-raised",
+                      bumpOn && "anim-log-bump",
+                    )}
+                  >
+                    <BrandMark />
+                    <span
+                      className={cn(
+                        "grid min-w-5 place-items-center rounded-full bg-sun px-1.5 text-[10px] font-black text-fg",
+                        bumpOn && "anim-pip",
+                      )}
+                    >
+                      {log.count}
+                    </span>
+                  </button>
                 ) : (
-                  <VolumeX className="size-[17px]" strokeWidth={2.45} />
+                  <BrandMark outlined={splash} padded />
                 )}
-              </ChipIcon>
-              <LangSwitch />
-            </div>
-          </header>
-          <main
-            className={cn(
-              "flex flex-1 flex-col",
-              splash
-                ? "px-0 pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:!h-auto [&>*]:min-h-full"
-                : "min-h-0 overflow-visible px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3",
-            )}
-          >
-            {children}
-          </main>
+              </div>
+              <div className="justify-self-center">
+                {next ? (
+                  <Button size="sm" onClick={next.onClick} className="h-8 px-5 text-sm">
+                    {next.label}
+                  </Button>
+                ) : null}
+              </div>
+              <div className="flex items-center justify-self-end gap-1">
+                <ChipIcon label={t("help.title")} onClick={() => setHelp(true)}>
+                  <CircleHelp className="hud-mark size-[17px]" strokeWidth={2.45} />
+                </ChipIcon>
+                <ChipIcon
+                  label={soundOn ? "mute" : "sound"}
+                  off={!soundOn}
+                  onClick={() => {
+                    unlockAudio();
+                    const nextOn = !sfxEnabled();
+                    setSfxEnabled(nextOn);
+                    setSoundOn(nextOn);
+                  }}
+                >
+                  {soundOn ? (
+                    <Volume2 className="hud-vol size-[17px]" strokeWidth={2.45} />
+                  ) : (
+                    <VolumeX className="size-[17px]" strokeWidth={2.45} />
+                  )}
+                </ChipIcon>
+                <LangSwitch />
+              </div>
+            </header>
+            <main
+              className={cn(
+                "flex flex-1 flex-col",
+                splash
+                  ? "px-0 pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:!h-auto [&>*]:min-h-full"
+                  : "min-h-0 overflow-visible px-2 pb-[max(0.9rem,env(safe-area-inset-bottom))] sm:px-3",
+              )}
+            >
+              {children}
+            </main>
           </div>
         </div>
         {help ? <HelpSheet onClose={() => setHelp(false)} /> : null}

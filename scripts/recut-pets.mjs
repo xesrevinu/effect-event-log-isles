@@ -20,14 +20,9 @@ import { keyStudioBlack, keyStudioWhite } from "./pet-matte.mjs";
 
 const exec = promisify(execFile);
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const localSources = [
-  join(root, "grok-final-pets-resources"),
-  "/Users/kee/Downloads/final_pets",
-];
+const localSources = [join(root, "grok-final-pets-resources"), "/Users/kee/Downloads/final_pets"];
 const sourceDir =
-  process.argv[2] ||
-  localSources.find((dir) => existsSync(join(dir, "videos"))) ||
-  localSources[0];
+  process.argv[2] || localSources.find((dir) => existsSync(join(dir, "videos"))) || localSources[0];
 const outDir = join(root, "public/pets");
 const workDir = join(tmpdir(), "eventlog-pet-recut");
 
@@ -81,12 +76,7 @@ function startStatic(dir) {
 async function extract(video, dest) {
   rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
-  await exec("ffmpeg", [
-    "-y",
-    "-i",
-    video,
-    join(dest, "%04d.png"),
-  ]);
+  await exec("ffmpeg", ["-y", "-i", video, join(dest, "%04d.png")]);
 }
 
 const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
@@ -130,10 +120,11 @@ for (const species of SPECIES) {
           const pix = pctx.getImageData(0, 0, EXTRACT, EXTRACT);
           const d = pix.data;
           const nearEmpty = (x, y, radius) => {
-            if (x < radius || y < radius || x >= EXTRACT - radius || y >= EXTRACT - radius) return true;
+            if (x < radius || y < radius || x >= EXTRACT - radius || y >= EXTRACT - radius)
+              return true;
             for (let dy = -radius; dy <= radius; dy++) {
               for (let dx = -radius; dx <= radius; dx++) {
-                if (d[( (y + dy) * EXTRACT + (x + dx) ) * 4 + 3] < 20) return true;
+                if (d[((y + dy) * EXTRACT + (x + dx)) * 4 + 3] < 20) return true;
               }
             }
             return false;
@@ -240,7 +231,10 @@ for (const species of SPECIES) {
       throw new Error("browser did not encode webp");
     }
     const dest = join(outDir, species.id, `${clip.id}.webp`);
-    writeFileSync(dest, Buffer.from(packed.dataUrl.slice("data:image/webp;base64,".length), "base64"));
+    writeFileSync(
+      dest,
+      Buffer.from(packed.dataUrl.slice("data:image/webp;base64,".length), "base64"),
+    );
     rmSync(join(outDir, species.id, `${clip.id}.png`), { force: true });
     manifest[species.id][clip.id] = { count: COUNT, fps: clip.fps, cols: COLS, rows: ROWS };
     console.log(`ok  window ${packed.window.sw}×${packed.window.sh}`);

@@ -39,9 +39,19 @@ const BEATS: { k: MessageKey; v: MessageKey; code?: string }[] = [
 function EffectMark() {
   const { t } = useI18n();
   const slots = [
-    { name: "Success", gloss: t("help.fx.slot.success"), skin: "help-slot-ok", tone: "text-accent-deep" },
+    {
+      name: "Success",
+      gloss: t("help.fx.slot.success"),
+      skin: "help-slot-ok",
+      tone: "text-accent-deep",
+    },
     { name: "Error", gloss: t("help.fx.slot.error"), skin: "help-slot-no", tone: "text-danger" },
-    { name: "Requirements", gloss: t("help.fx.slot.needs"), skin: "help-slot-need", tone: "text-sky-deep" },
+    {
+      name: "Requirements",
+      gloss: t("help.fx.slot.needs"),
+      skin: "help-slot-need",
+      tone: "text-sky-deep",
+    },
   ] as const;
   return (
     <div className="help-paper px-4 py-3.5">
@@ -49,7 +59,12 @@ function EffectMark() {
       <div className="mt-3 grid grid-cols-3 gap-2">
         {slots.map((slot) => (
           <div key={slot.name} className={cn("help-slot", slot.skin)}>
-            <p className={cn("font-display text-[1.05rem] leading-tight font-semibold tracking-tight", slot.tone)}>
+            <p
+              className={cn(
+                "font-display text-[1.05rem] leading-tight font-semibold tracking-tight",
+                slot.tone,
+              )}
+            >
               {slot.name}
             </p>
             <p className="mt-0.5 text-[11px] font-black tracking-wide text-subtle">{slot.gloss}</p>
@@ -67,7 +82,11 @@ function FxNotes() {
       {FX_CARDS.map((card, i) => (
         <section
           key={card.k}
-          className={cn("help-paper px-4 py-3.5", i === 1 && "rotate-[0.4deg]", i === 2 && "-rotate-[0.35deg]")}
+          className={cn(
+            "help-paper px-4 py-3.5",
+            i === 1 && "rotate-[0.4deg]",
+            i === 2 && "-rotate-[0.35deg]",
+          )}
         >
           <div className="flex items-start gap-2.5">
             <span className="help-sticker mt-0.5 shrink-0">{i + 1}</span>
@@ -94,7 +113,13 @@ function RayScene() {
         <circle cx="58" cy="54" r="22" fill="#ffc800" />
         <circle cx="51" cy="50" r="2.2" fill="#3b2a14" />
         <circle cx="65" cy="50" r="2.2" fill="#3b2a14" />
-        <path d="M52 60c3 3 9 3 12 0" fill="none" stroke="#3b2a14" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M52 60c3 3 9 3 12 0"
+          fill="none"
+          stroke="#3b2a14"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
         <ellipse cx="46" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
         <ellipse cx="70" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
       </g>
@@ -102,7 +127,13 @@ function RayScene() {
         <circle cx="222" cy="54" r="22" fill="#ce82ff" />
         <circle cx="215" cy="50" r="2.2" fill="#3b2a14" />
         <circle cx="229" cy="50" r="2.2" fill="#3b2a14" />
-        <path d="M216 60c3 3 9 3 12 0" fill="none" stroke="#3b2a14" strokeWidth="2" strokeLinecap="round" />
+        <path
+          d="M216 60c3 3 9 3 12 0"
+          fill="none"
+          stroke="#3b2a14"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
         <ellipse cx="210" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
         <ellipse cx="234" cy="58" rx="3.2" ry="2" fill="#ff8aa0" />
       </g>
@@ -119,7 +150,16 @@ function RayScene() {
         <path d="M184 18l1.2 3.2L188.4 22.4 185.2 24 184 27.2 182.8 24 179.6 22.4 183 21.2z" />
       </g>
       <g className="ray-letter">
-        <rect x="126" y="8" width="28" height="18" rx="3" fill="#fffdf6" stroke="#3b2a14" strokeWidth="1.6" />
+        <rect
+          x="126"
+          y="8"
+          width="28"
+          height="18"
+          rx="3"
+          fill="#fffdf6"
+          stroke="#3b2a14"
+          strokeWidth="1.6"
+        />
         <path d="M126 10l14 9 14-9" fill="none" stroke="#3b2a14" strokeWidth="1.6" />
       </g>
     </svg>
@@ -135,16 +175,9 @@ function RayPostcard() {
       <p className="mt-2 text-base font-semibold leading-relaxed text-muted">
         <HelpText text={t("help.ray.v")} />
       </p>
-      <a
-        href="https://x.com/xesrevinu"
-        target="_blank"
-        rel="noreferrer"
-        className="ray-nudge"
-      >
+      <a href="https://x.com/xesrevinu" target="_blank" rel="noreferrer" className="ray-nudge">
         <img src="/icons/nudge-ray.webp" alt="" className="ray-nudge-phone" />
-        <span className="ray-nudge-label chunk chunk-sm tex-grain">
-          {t("help.ray.cta")}
-        </span>
+        <span className="ray-nudge-label chunk chunk-sm tex-grain">{t("help.ray.cta")}</span>
       </a>
     </section>
   );
@@ -173,20 +206,40 @@ function WritePath() {
   return (
     <section className="help-paper flex flex-col gap-3 p-4">
       <div>
-        <p className="font-display text-lg font-semibold tracking-tight text-fg">{t("help.path.title")}</p>
+        <p className="font-display text-lg font-semibold tracking-tight text-fg">
+          {t("help.path.title")}
+        </p>
         <p className="mt-1 text-sm font-semibold text-muted">
           <HelpText text={t("help.path.hint")} />
         </p>
       </div>
       <div className="grid grid-cols-2 items-stretch gap-2.5">
-        <div className={cn("help-tile flex min-h-[5.5rem] items-center gap-2.5 px-3 py-3", ok && "help-tile-sun")}>
-          <img src="/isles/sun.webp" alt="" width={36} height={36} className="size-9 shrink-0 object-contain" />
+        <div
+          className={cn(
+            "help-tile flex min-h-[5.5rem] items-center gap-2.5 px-3 py-3",
+            ok && "help-tile-sun",
+          )}
+        >
+          <img
+            src="/isles/sun.webp"
+            alt=""
+            width={36}
+            height={36}
+            className="size-9 shrink-0 object-contain"
+          />
           <div className="min-w-0">
             <p className="text-[11px] font-black leading-none text-muted">{t("help.path.isle")}</p>
-            <p className="mt-1.5 text-sm font-black leading-snug">{t(ok ? "help.path.isle.ok" : "help.path.isle.no")}</p>
+            <p className="mt-1.5 text-sm font-black leading-snug">
+              {t(ok ? "help.path.isle.ok" : "help.path.isle.no")}
+            </p>
           </div>
         </div>
-        <div className={cn("help-tile flex min-h-[5.5rem] items-center px-3 py-3", !ok && "help-tile-no")}>
+        <div
+          className={cn(
+            "help-tile flex min-h-[5.5rem] items-center px-3 py-3",
+            !ok && "help-tile-no",
+          )}
+        >
           <div className="min-w-0">
             <p className="text-[11px] font-black leading-none text-muted">{t("help.path.book")}</p>
             <p className={cn("mt-1.5 text-sm font-black leading-snug", !ok && "text-danger")}>
@@ -229,7 +282,12 @@ function WritePath() {
           return (
             <li key={i} className="flex min-w-0 flex-1 items-center">
               {i > 0 ? (
-                <span className={cn("mx-0.5 h-[3px] w-2 shrink-0 rounded-full", dead ? "bg-danger" : done || here ? "bg-accent" : "bg-faint")} />
+                <span
+                  className={cn(
+                    "mx-0.5 h-[3px] w-2 shrink-0 rounded-full",
+                    dead ? "bg-danger" : done || here ? "bg-accent" : "bg-faint",
+                  )}
+                />
               ) : null}
               <button
                 type="button"

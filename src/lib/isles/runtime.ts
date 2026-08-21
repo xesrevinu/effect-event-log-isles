@@ -113,7 +113,8 @@ const writeOnIsle = Effect.fn("isles.write")(function* (
     yield* Effect.annotateCurrentSpan({ ok: false, error: code });
     return { ok: false, error: code, detail } satisfies WriteResult;
   }
-  const last = rowsExit.value.at(-1);
+  const rows = rowsExit.value;
+  const last = rows.at(-1);
   if (!last) {
     yield* Effect.annotateCurrentSpan({ ok: false, error: "jam" });
     return {

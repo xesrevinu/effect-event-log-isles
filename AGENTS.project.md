@@ -58,6 +58,35 @@ git remote -v; git log -1 --oneline
 
 If `public/pets/**` or `public/icons/**` still show `.png` while `origin/main` has `.webp`, the sandbox tree is **stale** — pull or resync before publish.
 
+## App Builder adapt layer (required to preview + deploy)
+
+This layer used to live only in the live App Builder template. It is now in
+this repo so clone, sandbox preview, `npm run build`, and grok.me stay aligned.
+
+| File | Why |
+| --- | --- |
+| `.grok/app-env.json` | Isles has **no login**. `VITE_AUTH_ENABLED=false`. |
+| `scripts/with-app-env.mjs` | Wraps **every** Vite command. Never start `vite` directly. |
+| `scripts/app-env-plugin.mjs` | Dev-only `/__app-env` for the auth-flag invariant. |
+| `.npmrc` | `legacy-peer-deps=true` — effect 4 vs `@hookform/resolvers` optional peer. |
+
+`package.json` scripts:
+
+```
+dev / build / build:dev / preview  →  node scripts/with-app-env.mjs vite …
+```
+
+`vite.config.ts` contract:
+
+- `server`: `0.0.0.0:8080` `strictPort` (live preview)
+- `preview`: `127.0.0.1:8081` `strictPort` (must **not** steal 8080)
+- `resolve.alias['@']` → `./src` (TypeScript 7 removed `baseUrl`; do not add it back)
+- `appEnvPlugin()` in the plugin list
+- `nitro({ preset: "vercel", serverDir: "./server" })` only when `command === "build" || isPreview`
+
+Do **not** copy a newer App Builder `AGENTS.md` over this repo's — platform
+docs change per sandbox; this file plus the files above are what deploys.
+
 ## Product
 
 Public OSS educational pet game for Effect EventLog. Production:

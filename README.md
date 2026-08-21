@@ -12,11 +12,11 @@ Sun Isle and Moon Isle. Raise two, go online and rename, then drop the server on
 
 Ray made this so he could walk his wife through a tricky idea. He only meant a light polish. Then it accidentally became the game you’re looking at. Want more like this? [Nudge him on X](https://x.com/xesrevinu).
 
-瑞做这座岛，是为了跟老婆把一件事讲明白。本来只想简单抛光一下，不小心做得太好。还想看他再做？[去催更](https://x.com/xesrevinu)。
+Ray 做这座岛，是为了跟老婆把一件事讲明白。本来只想简单抛光一下，不小心做得太好。还想看他再做？[去催更](https://x.com/xesrevinu)。
 
 ## Play
 
-Open [effect-event-log.grok.me](https://effect-event-log.grok.me). Language follows the browser, or tap the chip to switch.
+Open [https://effect-event-log.grok.me](https://effect-event-log.grok.me). Language follows the browser, or tap the chip to switch.
 
 Three little missions, then the isles are yours: hatch two kinds, go online and rename, drop the server and write while it's down.
 

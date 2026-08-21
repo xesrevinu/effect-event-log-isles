@@ -111,6 +111,7 @@ export function applyEvent(
         next[id] = finish({
           ...next[id],
           belly: next[id].belly + 1,
+          mood: next[id].mood - 1,
           xp: next[id].xp + 1,
           updatedAt: at,
         });
@@ -133,7 +134,6 @@ export function applyEvent(
           ...next[id],
           energy: MAX_ENERGY,
           belly: next[id].belly - 1,
-          mood: next[id].mood + 1,
           updatedAt: at,
         });
       }

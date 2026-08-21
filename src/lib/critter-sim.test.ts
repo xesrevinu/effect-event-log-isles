@@ -31,3 +31,26 @@ it("keeps hatch order after acting on the later pet", () => {
   expect(herd(sun)[0]?.belly).toBe(2);
   expect(herd(sun)[1]?.belly).toBe(3);
 });
+
+it("cycles belly, mood, and energy around the three acts", () => {
+  const hatched = sunFrom([{ event: "Hatched", payload: { id: "c1", species: "pip", name: "Pip" } }]);
+  expect(herd(hatched)[0]).toMatchObject({ belly: 2, mood: 2, energy: 2 });
+
+  const slept = sunFrom([
+    { event: "Hatched", payload: { id: "c1", species: "pip", name: "Pip" } },
+    { event: "Slept", payload: { id: "c1" } },
+  ]);
+  expect(herd(slept)[0]).toMatchObject({ belly: 1, mood: 2, energy: 3 });
+
+  const played = sunFrom([
+    { event: "Hatched", payload: { id: "c1", species: "pip", name: "Pip" } },
+    { event: "Played", payload: { id: "c1" } },
+  ]);
+  expect(herd(played)[0]).toMatchObject({ belly: 2, mood: 3, energy: 1 });
+
+  const fed = sunFrom([
+    { event: "Hatched", payload: { id: "c1", species: "pip", name: "Pip" } },
+    { event: "Fed", payload: { id: "c1" } },
+  ]);
+  expect(herd(fed)[0]).toMatchObject({ belly: 3, mood: 1, energy: 2 });
+});

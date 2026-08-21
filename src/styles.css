@@ -638,12 +638,10 @@
 @keyframes guide-pulse {
   0%,
   100% {
-    opacity: 0;
-    transform: scale(0.97);
+    opacity: 0.28;
   }
   50% {
     opacity: 1;
-    transform: scale(1);
   }
 }
 @keyframes guide-tip-bob {
@@ -658,18 +656,16 @@
 .guide-spot {
   position: relative;
   z-index: 3;
-  box-shadow:
-    0 0 0 2px #fffdf6,
-    0 0 0 4px var(--color-accent);
 }
 .guide-spot::after {
   content: "";
   position: absolute;
-  inset: -6px;
+  inset: 0;
   z-index: 2;
   border-radius: inherit;
-  border: 2px solid var(--color-accent-deep);
-  opacity: 0;
+  box-shadow:
+    0 0 0 3px var(--color-accent),
+    0 0 0 5px var(--color-accent-deep);
   pointer-events: none;
   animation: guide-pulse 1s ease-in-out infinite;
 }
@@ -691,6 +687,12 @@
   box-shadow: 0 2px 0 var(--color-accent-deep);
   pointer-events: none;
   animation: guide-tip-bob 1s ease-in-out infinite;
+}
+.guide-tip-right {
+  bottom: auto;
+  top: 50%;
+  left: calc(100% + 6px);
+  translate: 0 -50%;
 }
 .no-scrollbar {
   scrollbar-width: none;

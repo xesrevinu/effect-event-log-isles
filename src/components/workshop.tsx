@@ -101,17 +101,19 @@ function GuideHit({
   on,
   label,
   className,
+  tip = "above",
   children,
 }: {
   on: boolean;
   label?: string;
   className?: string;
+  tip?: "above" | "right";
   children: ReactNode;
 }) {
   return (
     <div className={cn("relative", on && "z-50", className)}>
       {on && label ? (
-        <span className="guide-tip" aria-hidden>
+        <span className={cn("guide-tip", tip === "right" && "guide-tip-right")} aria-hidden>
           {label}
         </span>
       ) : null}
@@ -349,7 +351,12 @@ const CritterCard = memo(function CritterCard({
       )}
     >
       <div className="absolute top-0 left-10 z-[60] w-max max-w-[5.5rem] -translate-x-1/2 -translate-y-[85%]">
-        <GuideHit on={spot === "name"} label={t("guide.rename")} className="w-full min-w-0">
+        <GuideHit
+          on={spot === "name"}
+          label={t("guide.rename")}
+          tip="right"
+          className="w-full min-w-0"
+        >
           {editing ? (
             <input
               autoFocus
